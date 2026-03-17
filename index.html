@@ -43,7 +43,9 @@
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
             <p class="mt-4 text-gray-600">Analisando documentos... isso pode levar alguns segundos.</p>
         </div>
-
+<button onclick="limparFiltro()" class="text-xs text-blue-600 hover:underline">
+    Limpar filtro
+</button>
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             <div class="bg-white rounded-xl shadow-md p-6">
                 <p class="text-sm font-medium text-gray-500 uppercase tracking-wide">Total de alunos faltantes</p>
@@ -75,7 +77,7 @@
                 <input
                     type="text"
                     id="busca_geral"
-                    placeholder="Ex.: Ademir ou Álgebra Linear"
+                    placeholder="Ex.: Aluno ou nome disciplina"
                     oninput="filtrarTabela()"
                     class="w-full border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border text-black"
                 >
@@ -203,15 +205,30 @@
             }
 
             cardDisciplinasEl.innerHTML = disciplinasOrdenadas.map(([disciplina, total]) => `
-                <div class="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3">
-                    <span class="text-sm font-medium text-gray-700">${disciplina}</span>
-                    <span class="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-bold text-blue-800">
-                        ${total}
-                    </span>
-                </div>
-            `).join('');
+            <div 
+                onclick="filtrarPorDisciplina('${disciplina.replace(/'/g, "\\'")}')"
+                class="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 cursor-pointer hover:bg-blue-50 transition"
+            >
+                <span class="text-sm font-medium text-gray-700">${disciplina}</span>
+                <span class="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-bold text-blue-800">
+                    ${total}
+                </span>
+            </div>
+        `).join('');
+        }
+        
+        function filtrarPorDisciplina(disciplina) {
+            const input = document.getElementById('busca_geral');
+            input.value = disciplina;
+            filtrarTabela();
         }
 
+        function limparFiltro() {
+            const input = document.getElementById('busca_geral');
+            input.value = '';
+            filtrarTabela();
+        }
+        
         function renderizarTabela(data) {
             const corpo = document.getElementById('tabela-corpo');
             corpo.innerHTML = '';
