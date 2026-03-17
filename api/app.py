@@ -143,16 +143,8 @@ def analyze():
                 print(f"Erro ao processar PDF {filename}: {e}")
 
     if lista_dfs:
-        df_final = pd.concat(lista_dfs, ignore_index=True)
+    df_final = pd.concat(lista_dfs, ignore_index=True)
+    df_final = df_final.sort_values(by=['Nome', 'Disciplina'])
+    return jsonify(df_final.to_dict(orient='records'))
 
-        df_agrupado = df_final.groupby(['Nome', 'Matrícula']).agg({
-            'Disciplina': lambda x: ' | '.join(sorted(set(x))),
-            'Total Faltas (Mês)': 'sum',
-            'Datas das Faltas': lambda x: ' // '.join(map(str, x))
-        }).reset_index()
-
-        df_agrupado = df_agrupado.sort_values(by='Nome')
-
-        return jsonify(df_agrupado.to_dict(orient='records'))
-
-    return jsonify([])
+return jsonify([])
