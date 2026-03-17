@@ -5,11 +5,9 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import tempfile
 
-app = Flask(__name__)
 
-# Habilita CORS para permitir que o GitHub Pages acesse esta API
-# Em produção, você pode restringir: CORS(app, resources={r"/analyze": {"origins": "https://rafaelparizi.github.io"}})
-CORS(app)
+app = Flask(__name__)
+CORS(app, origins=["https://rafaelparizi.github.io"])
 
 # --- NOTA: Substitua esta função pela sua lógica real de extração do PDF ---
 def analisar_faltas_detalhado(caminho_pdf, mes):
