@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Coordenação - Análise de Evasão</title>
+    <title>Coordenadoria - Análise de Evasão</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans">
     <div class="max-w-5xl mx-auto py-10 px-4">
         <header class="mb-10 text-center">
             <h1 class="text-3xl font-bold text-blue-800">Coordenação de Curso IFFar</h1>
-            <h2>Relatório de Evasão Consolidado</h2>
+            <h2 class="text-2xl font-semibold text-gray-900 mt-1">Relatório de Evasão Consolidado</h2>
             <p class="text-gray-600 mt-2">Upload de diários de classe para análise de faltas por aluno.</p>
         </header>
 
@@ -42,6 +42,24 @@
         <div id="loading" class="hidden text-center py-10">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
             <p class="mt-4 text-gray-600">Analisando documentos... isso pode levar alguns segundos.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <p class="text-sm font-medium text-gray-500 uppercase tracking-wide">Total de alunos faltantes</p>
+                <p id="card-total-alunos" class="mt-3 text-4xl font-bold text-blue-700">0</p>
+                <p class="mt-2 text-sm text-gray-500">Quantidade de registros exibidos na tabela.</p>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-md p-6 lg:col-span-2">
+                <div class="flex items-center justify-between mb-4">
+                    <p class="text-sm font-medium text-gray-500 uppercase tracking-wide">Disciplinas × total de alunos</p>
+                    <span id="resumo-disciplinas-qtd" class="text-xs text-gray-400">0 disciplinas</span>
+                </div>
+                <div id="card-disciplinas" class="space-y-3">
+                    <p class="text-sm text-gray-400 italic">Nenhum dado carregado.</p>
+                </div>
+            </div>
         </div>
 
         <div id="resultado" class="bg-white rounded-xl shadow-md overflow-hidden">
@@ -144,17 +162,54 @@
             const dadosFiltrados = dadosTabela.filter(aluno => {
                 const nome = (aluno.Nome || '').toLowerCase();
                 const disciplina = (aluno.Disciplina || '').toLowerCase();
-
                 return nome.includes(termo) || disciplina.includes(termo);
             });
 
             renderizarTabela(dadosFiltrados);
+            atualizarCardsResumo(dadosFiltrados);
 
             if (dadosFiltrados.length === 0) {
                 vazioDiv.classList.remove('hidden');
             } else {
                 vazioDiv.classList.add('hidden');
             }
+        }
+
+        function atualizarCardsResumo(data) {
+            const totalAlunosEl = document.getElementById('card-total-alunos');
+            const cardDisciplinasEl = document.getElementById('card-disciplinas');
+            const qtdDisciplinasEl = document.getElementById('resumo-disciplinas-qtd');
+
+            totalAlunosEl.textContent = data.length;
+
+            const disciplinasMap = {};
+
+            data.forEach(aluno => {
+                const disciplina = (aluno.Disciplina || 'Não identificada').trim();
+                if (!disciplinasMap[disciplina]) {
+                    disciplinasMap[disciplina] = 0;
+                }
+                disciplinasMap[disciplina] += 1;
+            });
+
+            const disciplinasOrdenadas = Object.entries(disciplinasMap)
+                .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR', { sensitivity: 'base' }));
+
+            qtdDisciplinasEl.textContent = `${disciplinasOrdenadas.length} disciplina${disciplinasOrdenadas.length === 1 ? '' : 's'}`;
+
+            if (disciplinasOrdenadas.length === 0) {
+                cardDisciplinasEl.innerHTML = `<p class="text-sm text-gray-400 italic">Nenhum dado para exibir.</p>`;
+                return;
+            }
+
+            cardDisciplinasEl.innerHTML = disciplinasOrdenadas.map(([disciplina, total]) => `
+                <div class="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3">
+                    <span class="text-sm font-medium text-gray-700">${disciplina}</span>
+                    <span class="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-bold text-blue-800">
+                        ${total}
+                    </span>
+                </div>
+            `).join('');
         }
 
         function renderizarTabela(data) {
