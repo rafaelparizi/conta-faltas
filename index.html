@@ -41,8 +41,11 @@
             </div>
         </div>
 
-        <div id="loading" class="hidden text-center py-10">
+       <div id="loading" class="hidden text-center py-10">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p class="mt-4 text-gray-600">
+                Analisando documentos... isso pode levar alguns segundos.
+            </p>
         </div>
 
         <!-- CARDS -->
@@ -109,22 +112,44 @@ async function processarPDFs() {
     const files = document.getElementById('arquivos').files;
     const mes = document.getElementById('mes_analise').value;
 
+    const btn = document.getElementById('btn-processar');
+    const loader = document.getElementById('loading');
+
+    if (files.length === 0) {
+        alert("Selecione ao menos um PDF");
+        return;
+    }
+
     const formData = new FormData();
     formData.append('mes', mes);
 
     for (let f of files) formData.append('arquivos', f);
 
-    const res = await fetch(`${API_URL}/analyze`, {
-        method: 'POST',
-        body: formData
-    });
+    // 🔥 LOADING ON
+    btn.disabled = true;
+    loader.classList.remove('hidden');
 
-    const data = await res.json();
-    dadosTabela = data || [];
+    try {
+        const res = await fetch(`${API_URL}/analyze`, {
+            method: 'POST',
+            body: formData
+        });
 
-    document.getElementById('label-mes').innerText = mes;
+        const data = await res.json();
+        dadosTabela = data || [];
 
-    filtrarTabela();
+        document.getElementById('label-mes').innerText = mes;
+
+        filtrarTabela();
+
+    } catch (e) {
+        alert("Erro na API");
+        console.error(e);
+    } finally {
+        // 🔥 LOADING OFF
+        btn.disabled = false;
+        loader.classList.add('hidden');
+    }
 }
 
 // ===== FILTRO + ORDENAÇÃO =====
@@ -172,15 +197,23 @@ function renderizarTabela(data) {
     const corpo = document.getElementById('tabela-corpo');
     corpo.innerHTML = '';
 
-    data.forEach(a => {
-        corpo.innerHTML += `
-        <tr>
-            <td class="px-4 py-2">${a.Nome}</td>
-            <td class="px-4 py-2">${a.Matrícula}</td>
-            <td class="px-4 py-2">${a.Disciplina}</td>
-            <td class="px-4 py-2 text-center text-red-600 font-bold">${a['Total Faltas (Mês)']}</td>
-            <td class="px-4 py-2">${a['Datas das Faltas']}</td>
-        </tr>`;
+    data.forEach((a, index) => {
+        const tr = document.createElement('tr');
+
+        // 🔥 efeito zebra
+        const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+
+        tr.className = `${bgClass} hover:bg-blue-50 transition`;
+
+        tr.innerHTML = `
+            <td class="px-4 py-2 font-medium text-gray-900">${a.Nome}</td>
+            <td class="px-4 py-2 text-gray-600">${a.Matrícula}</td>
+            <td class="px-4 py-2 text-gray-600">${a.Disciplina}</td>
+            <td class="px-4 py-2 text-center font-bold text-red-600">${a['Total Faltas (Mês)']}</td>
+            <td class="px-4 py-2 text-xs text-gray-500 italic">${a['Datas das Faltas']}</td>
+        `;
+
+        corpo.appendChild(tr);
     });
 }
 
