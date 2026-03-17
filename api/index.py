@@ -128,9 +128,8 @@ HTML_TEMPLATE = """
             vazioDiv.classList.add('hidden');
 
             try {
-                // Remove barras extras e garante que o endpoint termina SEM barra para evitar o Redirect 308 do Vercel
                 const baseUrl = API_URL.replace(/\/+$/, "");
-                const endpoint = `\${baseUrl}/analyze`;
+                const endpoint = `${baseUrl}/analyze`;
                 
                 console.log("Chamando:", endpoint);
 
@@ -145,7 +144,7 @@ HTML_TEMPLATE = """
                 
                 if (!response.ok) {
                     const errorDetail = await response.text();
-                    throw new Error(`Erro \${response.status}: \${errorDetail}`);
+                    throw new Error(`Erro ${response.status}: ${errorDetail}`);
                 }
                 
                 const data = await response.json();
@@ -172,11 +171,11 @@ HTML_TEMPLATE = """
             data.forEach(aluno => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="px-6 py-4 font-semibold text-gray-900">\${aluno.Nome}</td>
-                    <td class="px-6 py-4 font-mono text-xs text-gray-500">\${aluno.Matrícula}</td>
-                    <td class="px-6 py-4 text-gray-600">\${aluno.Disciplina}</td>
-                    <td class="px-6 py-4 text-center font-bold text-red-600">\${aluno['Total Faltas (Mês)']}</td>
-                    <td class="px-6 py-4 text-xs text-gray-400 font-italic">\${aluno['Datas das Faltas']}</td>
+                    <td class="px-6 py-4 font-semibold text-gray-900">${aluno.Nome}</td>
+                    <td class="px-6 py-4 font-mono text-xs text-gray-500">${aluno.Matrícula}</td>
+                    <td class="px-6 py-4 text-gray-600">${aluno.Disciplina}</td>
+                    <td class="px-6 py-4 text-center font-bold text-red-600">${aluno['Total Faltas (Mês)']}</td>
+                    <td class="px-6 py-4 text-xs text-gray-400 font-italic">${aluno['Datas das Faltas']}</td>
                 `;
                 corpo.appendChild(tr);
             });
