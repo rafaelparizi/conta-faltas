@@ -5,17 +5,18 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import tempfile
 
-
 app = Flask(__name__)
-CORS(app, origins=["https://rafaelparizi.github.io"])
+
+# Configuração de CORS robusta
+# O parâmetro 'resources' garante que todas as rotas aceitem requisições externas
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # --- NOTA: Substitua esta função pela sua lógica real de extração do PDF ---
 def analisar_faltas_detalhado(caminho_pdf, mes):
     """
-    Esta é uma função de exemplo. 
-    Aqui deve entrar a sua lógica que usa pdfplumber ou similar.
+    Sua lógica original de leitura de PDF deve ser colada aqui.
     """
-    # Exemplo de retorno para teste:
+    # Mock para teste
     data = {
         'Nome': ['João Silva', 'Maria Santos'],
         'Matrícula': ['123', '456'],
@@ -42,7 +43,7 @@ HTML_TEMPLATE = """
             <p class="text-gray-600 mt-2">Upload de diários de classe para análise de faltas por aluno.</p>
         </header>
 
-        <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+        <div class="bg-white p-6 rounded-xl shadow-md mb-8 border border-slate-200">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Mês de Análise</label>
@@ -70,37 +71,36 @@ HTML_TEMPLATE = """
             <p class="mt-4 text-gray-600">Analisando documentos... isso pode levar alguns segundos.</p>
         </div>
 
-        <div id="resultado" class="hidden bg-white rounded-xl shadow-md overflow-hidden">
+        <div id="resultado" class="hidden bg-white rounded-xl shadow-md overflow-hidden border border-slate-200">
             <div class="p-4 border-b bg-gray-50 flex justify-between items-center">
                 <h2 class="font-bold text-gray-700 text-sm uppercase tracking-wider">Alunos com padrão de evasão detectado</h2>
                 <span id="label-mes" class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">Março</span>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50 text-slate-500">
+                    <thead class="bg-gray-50 text-slate-500 font-bold uppercase text-xs">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider">Nome</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider">Matrícula</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider">Disciplinas</th>
-                            <th class="px-6 py-3 text-center text-xs font-bold uppercase tracking-wider">Faltas</th>
-                            <th class="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider">Datas</th>
+                            <th class="px-6 py-3 text-left">Nome</th>
+                            <th class="px-6 py-3 text-left">Matrícula</th>
+                            <th class="px-6 py-3 text-left">Disciplinas</th>
+                            <th class="px-6 py-3 text-center">Faltas</th>
+                            <th class="px-6 py-3 text-left">Datas</th>
                         </tr>
                     </thead>
                     <tbody id="tabela-corpo" class="bg-white divide-y divide-gray-200 text-sm">
-                        <!-- Conteúdo via JS -->
+                        <!-- JS content -->
                     </tbody>
                 </table>
             </div>
         </div>
         
         <div id="vazio" class="hidden text-center py-20 text-gray-500 italic">
-            Nenhum aluno em padrão de evasão detectado para os critérios selecionados.
+            Nenhum aluno em padrão de evasão detectado.
         </div>
     </div>
 
     <script>
-        // --- IMPORTANTE: URL DA API ---
-        // Certifique-se de NÃO colocar uma barra "/" no final para evitar o erro //analyze
+        // --- CONFIGURAÇÃO ---
         const API_URL = "https://conta-faltas.vercel.app"; 
 
         async function processarPDFs() {
@@ -112,7 +112,7 @@ HTML_TEMPLATE = """
             const vazioDiv = document.getElementById('vazio');
             
             if (fileInput.files.length === 0) {
-                alert("Por favor, selecione ao menos um arquivo PDF.");
+                alert("Selecione os arquivos.");
                 return;
             }
 
@@ -122,37 +122,43 @@ HTML_TEMPLATE = """
                 formData.append('arquivos', fileInput.files[i]);
             }
 
-            // UI State
             btn.disabled = true;
             loader.classList.remove('hidden');
             resDiv.classList.add('hidden');
             vazioDiv.classList.add('hidden');
 
             try {
-                // Montando a URL garantindo que não haja barras duplas
-                const endpoint = `\${API_URL}/analyze`.replace(/([^:]\/)\/+/g, "$1");
+                // Remove barras extras e garante que o endpoint termina SEM barra para evitar o Redirect 308 do Vercel
+                const baseUrl = API_URL.replace(/\/+$/, "");
+                const endpoint = `\${baseUrl}/analyze`;
                 
+                console.log("Chamando:", endpoint);
+
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     body: formData,
-                    mode: 'cors'
+                    mode: 'cors',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`Servidor respondeu com erro \${response.status}`);
+                    const errorDetail = await response.text();
+                    throw new Error(`Erro \${response.status}: \${errorDetail}`);
                 }
                 
                 const data = await response.json();
                 
-                if (data.length > 0) {
+                if (data && data.length > 0) {
                     renderizarTabela(data, mes);
                     resDiv.classList.remove('hidden');
                 } else {
                     vazioDiv.classList.remove('hidden');
                 }
             } catch (error) {
-                console.error("Erro detalhado:", error);
-                alert("Erro ao conectar com a API. Verifique se o backend no Vercel está rodando e se o CORS está configurado.");
+                console.error("Erro completo:", error);
+                alert("Erro de conexão.\\n\\nVerifique se o Vercel concluiu o deploy e se o requirements.txt possui 'flask-cors'.");
             } finally {
                 btn.disabled = false;
                 loader.classList.add('hidden');
@@ -163,17 +169,14 @@ HTML_TEMPLATE = """
             const corpo = document.getElementById('tabela-corpo');
             document.getElementById('label-mes').innerText = mes;
             corpo.innerHTML = '';
-
             data.forEach(aluno => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap font-semibold text-gray-900">\${aluno.Nome}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-gray-600 font-mono text-xs">\${aluno.Matrícula}</td>
+                    <td class="px-6 py-4 font-semibold text-gray-900">\${aluno.Nome}</td>
+                    <td class="px-6 py-4 font-mono text-xs text-gray-500">\${aluno.Matrícula}</td>
                     <td class="px-6 py-4 text-gray-600">\${aluno.Disciplina}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-center">
-                        <span class="bg-red-50 text-red-700 px-2 py-1 rounded font-bold">\${aluno['Total Faltas (Mês)']}</span>
-                    </td>
-                    <td class="px-6 py-4 text-xs text-gray-500 italic">\${aluno['Datas das Faltas']}</td>
+                    <td class="px-6 py-4 text-center font-bold text-red-600">\${aluno['Total Faltas (Mês)']}</td>
+                    <td class="px-6 py-4 text-xs text-gray-400 font-italic">\${aluno['Datas das Faltas']}</td>
                 `;
                 corpo.appendChild(tr);
             });
@@ -189,8 +192,12 @@ HTML_TEMPLATE = """
 def index():
     return render_template_string(HTML_TEMPLATE)
 
-@app.route('/analyze', methods=['POST'])
+@app.route('/analyze', methods=['POST', 'OPTIONS'])
 def analyze():
+    # OPTIONS é necessário para o 'preflight' do CORS em alguns casos
+    if request.method == 'OPTIONS':
+        return '', 200
+
     mes_analise = request.form.get('mes', 'Março')
     arquivos_enviados = request.files.getlist('arquivos')
     
@@ -199,7 +206,6 @@ def analyze():
     with tempfile.TemporaryDirectory() as tmpdirname:
         for f in arquivos_enviados:
             if f.filename == '': continue
-            
             filename = secure_filename(f.filename)
             filepath = os.path.join(tmpdirname, filename)
             f.save(filepath)
@@ -209,19 +215,16 @@ def analyze():
                 if df_temp is not None and not df_temp.empty:
                     lista_dfs.append(df_temp)
             except Exception as e:
-                print(f"Erro ao processar {filename}: {e}")
+                print(f"Erro processando {filename}: {e}")
 
     if lista_dfs:
         df_final = pd.concat(lista_dfs, ignore_index=True)
-        
         df_agrupado = df_final.groupby(['Nome', 'Matrícula']).agg({
             'Disciplina': lambda x: ' | '.join(set(x)),
             'Total Faltas (Mês)': 'sum',
             'Datas das Faltas': lambda x: ' // '.join(map(str, x))
         }).reset_index()
-
-        df_agrupado = df_agrupado.sort_values(by='Nome')
-        return jsonify(df_agrupado.to_dict(orient='records'))
+        return jsonify(df_agrupado.sort_values(by='Nome').to_dict(orient='records'))
     
     return jsonify([])
 
