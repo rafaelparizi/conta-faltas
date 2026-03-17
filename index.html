@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coordenadoria - Análise de Evasão</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+    <div class="max-w-5xl mx-auto py-10 px-4">
+        <header class="mb-10 text-center">
+            <h1 class="text-3xl font-bold text-blue-800">Relatório de Evasão Consolidado</h1>
+            <p class="text-gray-600 mt-2">Upload de diários de classe para análise de faltas por aluno.</p>
+        </header>
+
+        <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Mês de Análise</label>
+                    <select id="mes_analise" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border text-black">
+                        <option value="Janeiro">Janeiro</option>
+                        <option value="Fevereiro">Fevereiro</option>
+                        <option value="Março" selected>Março</option>
+                        <option value="Abril">Abril</option>
+                        <option value="Maio">Maio</option>
+                        <option value="Junho">Junho</option>
+                    </select>
+                </div>
+                <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Selecionar PDFs</label>
+                    <input type="file" id="arquivos" multiple accept=".pdf" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                </div>
+                <button onclick="processarPDFs()" id="btn-processar" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition duration-200">
+                    Processar Relatório
+                </button>
+            </div>
+        </div>
+
+        <div id="loading" class="hidden text-center py-10">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p class="mt-4 text-gray-600">Analisando documentos... isso pode levar alguns segundos.</p>
+        </div>
+
+        <div id="resultado" class="hidden bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="p-4 border-b bg-gray-50 flex justify-between items-center text-black">
+                <h2 class="font-bold">Alunos com padrão de evasão detectado</h2>
+                <span id="label-mes" class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">Março</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-black">
+                    <thead class="bg-gray-50 text-black">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Matrícula</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Disciplinas</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Total Faltas</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Datas</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-corpo" class="bg-white divide-y divide-gray-200 text-sm">
+                        <!-- Conteúdo via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div id="vazio" class="hidden text-center py-20 text-gray-500 italic">
+            Nenhum aluno em padrão de evasão detectado para os critérios selecionados.
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURAÇÃO: COLOQUE A URL DO SEU VERCEL AQUI ---
+        const API_URL = "https://seu-projeto.vercel.app"; 
+
+        async function processarPDFs() {
+            const fileInput = document.getElementById('arquivos');
+            const mes = document.getElementById('mes_analise').value;
+            const btn = document.getElementById('btn-processar');
+            const loader = document.getElementById('loading');
+            const resDiv = document.getElementById('resultado');
+            const vazioDiv = document.getElementById('vazio');
+            
+            if (fileInput.files.length === 0) {
+                alert("Por favor, selecione ao menos um arquivo PDF.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('mes', mes);
+            for (let i = 0; i < fileInput.files.length; i++) {
+                formData.append('arquivos', fileInput.files[i]);
+            }
+
+            btn.disabled = true;
+            loader.classList.remove('hidden');
+            resDiv.classList.add('hidden');
+            vazioDiv.classList.add('hidden');
+
+            try {
+                // Chamada para a API Externa (Vercel)
+                const response = await fetch(`${API_URL}/analyze`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error("Erro na resposta da API");
+                
+                const data = await response.json();
+                
+                if (data.length > 0) {
+                    renderizarTabela(data, mes);
+                    resDiv.classList.remove('hidden');
+                } else {
+                    vazioDiv.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Erro ao conectar com a API. Verifique a URL e se o CORS está configurado.");
+            } finally {
+                btn.disabled = false;
+                loader.classList.add('hidden');
+            }
+        }
+
+        function renderizarTabela(data, mes) {
+            const corpo = document.getElementById('tabela-corpo');
+            document.getElementById('label-mes').innerText = mes;
+            corpo.innerHTML = '';
+
+            data.forEach(aluno => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">\${aluno.Nome}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-gray-600">\${aluno.Matrícula}</td>
+                    <td class="px-6 py-4 text-gray-600">\${aluno.Disciplina}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center font-bold text-red-600">\${aluno['Total Faltas (Mês)']}</td>
+                    <td class="px-6 py-4 text-xs text-gray-500 italic">\${aluno['Datas das Faltas']}</td>
+                `;
+                corpo.appendChild(tr);
+            });
+        }
+    </script>
+</body>
+</html>
