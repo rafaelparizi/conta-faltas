@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Coordenadoria - Análise de Evasão</title>
+    <title>Coordenação - Análise de Evasão</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 min-h-screen font-sans">
     <div class="max-w-5xl mx-auto py-10 px-4">
         <header class="mb-10 text-center">
-            <h1 class="text-3xl font-bold text-blue-800">Relatório de Evasão Consolidado</h1>
+            <h1 class="text-3xl font-bold text-blue-800">Coordenação de Curso IFFar</h1>
+            <h2>Relatório de Evasão Consolidado</h2>
             <p class="text-gray-600 mt-2">Upload de diários de classe para análise de faltas por aluno.</p>
         </header>
 
@@ -26,10 +27,12 @@
                         <option value="Junho">Junho</option>
                     </select>
                 </div>
+
                 <div class="md:col-span-1">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Selecionar PDFs</label>
                     <input type="file" id="arquivos" multiple accept=".pdf" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                 </div>
+
                 <button onclick="processarPDFs()" id="btn-processar" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition duration-200">
                     Processar Relatório
                 </button>
@@ -41,18 +44,20 @@
             <p class="mt-4 text-gray-600">Analisando documentos... isso pode levar alguns segundos.</p>
         </div>
 
-        <div id="resultado" class="hidden bg-white rounded-xl shadow-md overflow-hidden">
+        <div id="resultado" class="bg-white rounded-xl shadow-md overflow-hidden">
             <div class="p-4 border-b bg-gray-50 flex justify-between items-center text-black">
                 <h2 class="font-bold">Alunos com padrão de evasão detectado</h2>
                 <span id="label-mes" class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">Março</span>
             </div>
 
             <div class="p-4 border-b bg-white">
-                <label for="busca_nome" class="block text-sm font-medium text-gray-700 mb-1">Buscar por nome</label>
+                <label for="busca_geral" class="block text-sm font-medium text-gray-700 mb-1">
+                    Buscar por nome do aluno ou disciplina
+                </label>
                 <input
                     type="text"
-                    id="busca_nome"
-                    placeholder="Digite o nome do aluno..."
+                    id="busca_geral"
+                    placeholder="Ex.: Ademir ou Álgebra Linear"
                     oninput="filtrarTabela()"
                     class="w-full border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border text-black"
                 >
@@ -70,7 +75,6 @@
                         </tr>
                     </thead>
                     <tbody id="tabela-corpo" class="bg-white divide-y divide-gray-200 text-sm">
-                        <!-- Conteúdo via JS -->
                     </tbody>
                 </table>
             </div>
@@ -90,9 +94,8 @@
             const mes = document.getElementById('mes_analise').value;
             const btn = document.getElementById('btn-processar');
             const loader = document.getElementById('loading');
-            const resDiv = document.getElementById('resultado');
             const vazioDiv = document.getElementById('vazio');
-            
+
             if (fileInput.files.length === 0) {
                 alert("Por favor, selecione ao menos um arquivo PDF.");
                 return;
@@ -107,7 +110,6 @@
 
             btn.disabled = true;
             loader.classList.remove('hidden');
-            resDiv.classList.add('hidden');
             vazioDiv.classList.add('hidden');
 
             try {
@@ -115,20 +117,17 @@
                     method: 'POST',
                     body: formData
                 });
-                
-                if (!response.ok) throw new Error("Erro na resposta da API");
-                
+
+                if (!response.ok) {
+                    throw new Error("Erro na resposta da API");
+                }
+
                 const data = await response.json();
                 dadosTabela = data || [];
+
                 document.getElementById('label-mes').innerText = mes;
-                document.getElementById('busca_nome').value = '';
-                
-                if (dadosTabela.length > 0) {
-                    renderizarTabela(dadosTabela);
-                    resDiv.classList.remove('hidden');
-                } else {
-                    vazioDiv.classList.remove('hidden');
-                }
+
+                filtrarTabela();
             } catch (error) {
                 console.error(error);
                 alert("Erro ao conectar com a API. Verifique a URL e se o CORS está configurado.");
@@ -139,22 +138,22 @@
         }
 
         function filtrarTabela() {
-            const termo = document.getElementById('busca_nome').value.toLowerCase().trim();
-            const resultadoDiv = document.getElementById('resultado');
+            const termo = document.getElementById('busca_geral').value.toLowerCase().trim();
             const vazioDiv = document.getElementById('vazio');
 
-            const dadosFiltrados = dadosTabela.filter(aluno =>
-                (aluno.Nome || '').toLowerCase().includes(termo)
-            );
+            const dadosFiltrados = dadosTabela.filter(aluno => {
+                const nome = (aluno.Nome || '').toLowerCase();
+                const disciplina = (aluno.Disciplina || '').toLowerCase();
 
-            if (dadosFiltrados.length > 0) {
-                renderizarTabela(dadosFiltrados);
-                resultadoDiv.classList.remove('hidden');
-                vazioDiv.classList.add('hidden');
-            } else {
-                renderizarTabela([]);
-                resultadoDiv.classList.add('hidden');
+                return nome.includes(termo) || disciplina.includes(termo);
+            });
+
+            renderizarTabela(dadosFiltrados);
+
+            if (dadosFiltrados.length === 0) {
                 vazioDiv.classList.remove('hidden');
+            } else {
+                vazioDiv.classList.add('hidden');
             }
         }
 
