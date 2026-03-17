@@ -43,9 +43,7 @@
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
             <p class="mt-4 text-gray-600">Analisando documentos... isso pode levar alguns segundos.</p>
         </div>
-<button onclick="limparFiltro()" class="text-xs text-blue-600 hover:underline">
-    Limpar filtro
-</button>
+
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             <div class="bg-white rounded-xl shadow-md p-6">
                 <p class="text-sm font-medium text-gray-500 uppercase tracking-wide">Total de alunos faltantes</p>
@@ -55,8 +53,15 @@
 
             <div class="bg-white rounded-xl shadow-md p-6 lg:col-span-2">
                 <div class="flex items-center justify-between mb-4">
-                    <p class="text-sm font-medium text-gray-500 uppercase tracking-wide">Disciplinas × total de alunos</p>
-                    <span id="resumo-disciplinas-qtd" class="text-xs text-gray-400">0 disciplinas</span>
+                    <p class="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                        Disciplinas × total de alunos
+                    </p>
+                    <div class="flex items-center gap-3">
+                        <span id="resumo-disciplinas-qtd" class="text-xs text-gray-400">0 disciplinas</span>
+                        <button onclick="limparFiltro()" class="text-xs text-blue-600 hover:underline">
+                            Limpar filtro
+                        </button>
+                    </div>
                 </div>
                 <div id="card-disciplinas" class="space-y-3">
                     <p class="text-sm text-gray-400 italic">Nenhum dado carregado.</p>
@@ -90,7 +95,10 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Matrícula</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Disciplina</th>
-                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Total Faltas</th>
+                            <th onclick="alternarOrdenacao()"
+                                class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600 select-none">
+                                Total Faltas ⬍
+                            </th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Datas</th>
                         </tr>
                     </thead>
@@ -108,6 +116,7 @@
     <script>
         const API_URL = "https://conta-faltas.vercel.app";
         let dadosTabela = [];
+        let ordemDesc = true;
 
         async function processarPDFs() {
             const fileInput = document.getElementById('arquivos');
@@ -161,10 +170,15 @@
             const termo = document.getElementById('busca_geral').value.toLowerCase().trim();
             const vazioDiv = document.getElementById('vazio');
 
-            const dadosFiltrados = dadosTabela.filter(aluno => {
+            let dadosFiltrados = dadosTabela.filter(aluno => {
                 const nome = (aluno.Nome || '').toLowerCase();
                 const disciplina = (aluno.Disciplina || '').toLowerCase();
                 return nome.includes(termo) || disciplina.includes(termo);
+            });
+
+            dadosFiltrados.sort((a, b) => {
+                const diff = (Number(b['Total Faltas (Mês)']) || 0) - (Number(a['Total Faltas (Mês)']) || 0);
+                return ordemDesc ? diff : -diff;
             });
 
             renderizarTabela(dadosFiltrados);
@@ -205,16 +219,16 @@
             }
 
             cardDisciplinasEl.innerHTML = disciplinasOrdenadas.map(([disciplina, total]) => `
-            <div 
-                onclick="filtrarPorDisciplina('${disciplina.replace(/'/g, "\\'")}')"
-                class="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 cursor-pointer hover:bg-blue-50 transition"
-            >
-                <span class="text-sm font-medium text-gray-700">${disciplina}</span>
-                <span class="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-bold text-blue-800">
-                    ${total}
-                </span>
-            </div>
-        `).join('');
+                <div 
+                    onclick="filtrarPorDisciplina('${disciplina.replace(/'/g, "\\'")}')"
+                    class="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 cursor-pointer hover:bg-blue-50 transition"
+                >
+                    <span class="text-sm font-medium text-gray-700">${disciplina}</span>
+                    <span class="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-bold text-blue-800">
+                        ${total}
+                    </span>
+                </div>
+            `).join('');
         }
         
         function filtrarPorDisciplina(disciplina) {
@@ -226,6 +240,11 @@
         function limparFiltro() {
             const input = document.getElementById('busca_geral');
             input.value = '';
+            filtrarTabela();
+        }
+
+        function alternarOrdenacao() {
+            ordemDesc = !ordemDesc;
             filtrarTabela();
         }
         
