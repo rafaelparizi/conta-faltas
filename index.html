@@ -18,7 +18,7 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Mês de Análise</label>
-                    <select id="mes_analise" class="w-full border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border text-black">
+                    <select id="mes_analise" class="w-full border-gray-300 rounded-lg shadow-sm p-2 border text-black">
                         <option value="Janeiro">Janeiro</option>
                         <option value="Fevereiro">Fevereiro</option>
                         <option value="Março" selected>Março</option>
@@ -28,12 +28,14 @@
                     </select>
                 </div>
 
-                <div class="md:col-span-1">
+                <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Selecionar PDFs</label>
-                    <input type="file" id="arquivos" multiple accept=".pdf" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    <input type="file" id="arquivos" multiple accept=".pdf"
+                        class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:bg-blue-50 file:text-blue-700">
                 </div>
 
-                <button onclick="processarPDFs()" id="btn-processar" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition duration-200">
+                <button onclick="processarPDFs()" id="btn-processar"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg">
                     Processar Relatório
                 </button>
             </div>
@@ -41,229 +43,180 @@
 
         <div id="loading" class="hidden text-center py-10">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p class="mt-4 text-gray-600">Analisando documentos... isso pode levar alguns segundos.</p>
         </div>
 
+        <!-- CARDS -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             <div class="bg-white rounded-xl shadow-md p-6">
-                <p class="text-sm font-medium text-gray-500 uppercase tracking-wide">Total de alunos faltantes</p>
+                <p class="text-sm text-gray-500 uppercase">Total de alunos faltantes</p>
                 <p id="card-total-alunos" class="mt-3 text-4xl font-bold text-blue-700">0</p>
-                <p class="mt-2 text-sm text-gray-500">Quantidade de registros exibidos na tabela.</p>
             </div>
 
             <div class="bg-white rounded-xl shadow-md p-6 lg:col-span-2">
-                <div class="flex items-center justify-between mb-4">
-                    <p class="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                        Disciplinas × total de alunos
-                    </p>
-                    <div class="flex items-center gap-3">
-                        <span id="resumo-disciplinas-qtd" class="text-xs text-gray-400">0 disciplinas</span>
+                <div class="flex justify-between mb-4">
+                    <p class="text-sm text-gray-500 uppercase">Disciplinas × total de alunos</p>
+                    <div class="flex gap-3">
+                        <span id="resumo-disciplinas-qtd" class="text-xs text-gray-400">0</span>
                         <button onclick="limparFiltro()" class="text-xs text-blue-600 hover:underline">
                             Limpar filtro
                         </button>
                     </div>
                 </div>
-                <div id="card-disciplinas" class="space-y-3">
-                    <p class="text-sm text-gray-400 italic">Nenhum dado carregado.</p>
-                </div>
+                <div id="card-disciplinas"></div>
             </div>
         </div>
 
-        <div id="resultado" class="bg-white rounded-xl shadow-md overflow-hidden">
-            <div class="p-4 border-b bg-gray-50 flex justify-between items-center text-black">
-                <h2 class="font-bold">Alunos com padrão de evasão detectado</h2>
-                <span id="label-mes" class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">Março</span>
+        <!-- TABELA -->
+        <div class="bg-white rounded-xl shadow-md">
+            <div class="p-4 border-b flex justify-between">
+                <h2 class="font-bold">Alunos com evasão</h2>
+                <span id="label-mes" class="text-xs bg-blue-100 px-2 rounded">Março</span>
             </div>
 
-            <div class="p-4 border-b bg-white">
-                <label for="busca_geral" class="block text-sm font-medium text-gray-700 mb-1">
-                    Buscar por nome do aluno ou disciplina
-                </label>
-                <input
-                    type="text"
-                    id="busca_geral"
-                    placeholder="Ex.: Aluno ou nome disciplina"
-                    oninput="filtrarTabela()"
-                    class="w-full border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border text-black"
-                >
+            <div class="p-4">
+                <input id="busca_geral" oninput="filtrarTabela()" placeholder="Buscar..."
+                    class="w-full border p-2 rounded">
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 text-black">
-                    <thead class="bg-gray-50 text-black">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Matrícula</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Disciplina</th>
-                            <th onclick="alternarOrdenacao()"
-                                class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-blue-600 select-none">
-                                Total Faltas ⬍
-                            </th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Datas</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabela-corpo" class="bg-white divide-y divide-gray-200 text-sm">
-                    </tbody>
-                </table>
-            </div>
+            <table class="min-w-full text-sm">
+                <thead>
+                    <tr>
+                        <th onclick="ordenarPorNome()" class="cursor-pointer px-4 py-2">Nome ⬍</th>
+                        <th class="px-4 py-2">Matrícula</th>
+                        <th class="px-4 py-2">Disciplina</th>
+                        <th onclick="ordenarPorFaltas()" class="cursor-pointer px-4 py-2 text-center">Faltas ⬍</th>
+                        <th class="px-4 py-2">Datas</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela-corpo"></tbody>
+            </table>
         </div>
-        
-        <div id="vazio" class="hidden text-center py-20 text-gray-500 italic">
-            Nenhum aluno em padrão de evasão detectado para os critérios selecionados.
+
+        <div id="vazio" class="hidden text-center py-10 text-gray-500">
+            Nenhum resultado encontrado
         </div>
     </div>
 
-    <script>
-        const API_URL = "https://conta-faltas.vercel.app";
-        let dadosTabela = [];
-        let ordemDesc = true;
+<script>
+const API_URL = "https://conta-faltas.vercel.app";
 
-        async function processarPDFs() {
-            const fileInput = document.getElementById('arquivos');
-            const mes = document.getElementById('mes_analise').value;
-            const btn = document.getElementById('btn-processar');
-            const loader = document.getElementById('loading');
-            const vazioDiv = document.getElementById('vazio');
+let dadosTabela = [];
+let ordemDesc = true;
+let colunaOrdenacao = 'faltas';
 
-            if (fileInput.files.length === 0) {
-                alert("Por favor, selecione ao menos um arquivo PDF.");
-                return;
-            }
+// ===== API =====
+async function processarPDFs() {
+    const files = document.getElementById('arquivos').files;
+    const mes = document.getElementById('mes_analise').value;
 
-            const formData = new FormData();
-            formData.append('mes', mes);
+    const formData = new FormData();
+    formData.append('mes', mes);
 
-            for (let i = 0; i < fileInput.files.length; i++) {
-                formData.append('arquivos', fileInput.files[i]);
-            }
+    for (let f of files) formData.append('arquivos', f);
 
-            btn.disabled = true;
-            loader.classList.remove('hidden');
-            vazioDiv.classList.add('hidden');
+    const res = await fetch(`${API_URL}/analyze`, {
+        method: 'POST',
+        body: formData
+    });
 
-            try {
-                const response = await fetch(`${API_URL}/analyze`, {
-                    method: 'POST',
-                    body: formData
-                });
+    const data = await res.json();
+    dadosTabela = data || [];
 
-                if (!response.ok) {
-                    throw new Error("Erro na resposta da API");
-                }
+    document.getElementById('label-mes').innerText = mes;
 
-                const data = await response.json();
-                dadosTabela = data || [];
+    filtrarTabela();
+}
 
-                document.getElementById('label-mes').innerText = mes;
+// ===== FILTRO + ORDENAÇÃO =====
+function filtrarTabela() {
+    const termo = document.getElementById('busca_geral').value.toLowerCase();
 
-                filtrarTabela();
-            } catch (error) {
-                console.error(error);
-                alert("Erro ao conectar com a API. Verifique a URL e se o CORS está configurado.");
-            } finally {
-                btn.disabled = false;
-                loader.classList.add('hidden');
-            }
-        }
+    let dados = dadosTabela.filter(a =>
+        (a.Nome || '').toLowerCase().includes(termo) ||
+        (a.Disciplina || '').toLowerCase().includes(termo)
+    );
 
-        function filtrarTabela() {
-            const termo = document.getElementById('busca_geral').value.toLowerCase().trim();
-            const vazioDiv = document.getElementById('vazio');
+    if (colunaOrdenacao === 'faltas') {
+        dados.sort((a,b) => {
+            const diff = b['Total Faltas (Mês)'] - a['Total Faltas (Mês)'];
+            return ordemDesc ? diff : -diff;
+        });
+    } else {
+        dados.sort((a,b) => {
+            const diff = a.Nome.localeCompare(b.Nome, 'pt-BR');
+            return ordemDesc ? -diff : diff;
+        });
+    }
 
-            let dadosFiltrados = dadosTabela.filter(aluno => {
-                const nome = (aluno.Nome || '').toLowerCase();
-                const disciplina = (aluno.Disciplina || '').toLowerCase();
-                return nome.includes(termo) || disciplina.includes(termo);
-            });
+    renderizarTabela(dados);
+    atualizarCardsResumo(dados);
 
-            dadosFiltrados.sort((a, b) => {
-                const diff = (Number(b['Total Faltas (Mês)']) || 0) - (Number(a['Total Faltas (Mês)']) || 0);
-                return ordemDesc ? diff : -diff;
-            });
+    document.getElementById('vazio').classList.toggle('hidden', dados.length > 0);
+}
 
-            renderizarTabela(dadosFiltrados);
-            atualizarCardsResumo(dadosFiltrados);
+// ===== ORDENAÇÃO =====
+function ordenarPorFaltas() {
+    colunaOrdenacao = 'faltas';
+    ordemDesc = !ordemDesc;
+    filtrarTabela();
+}
 
-            if (dadosFiltrados.length === 0) {
-                vazioDiv.classList.remove('hidden');
-            } else {
-                vazioDiv.classList.add('hidden');
-            }
-        }
+function ordenarPorNome() {
+    colunaOrdenacao = 'nome';
+    ordemDesc = !ordemDesc;
+    filtrarTabela();
+}
 
-        function atualizarCardsResumo(data) {
-            const totalAlunosEl = document.getElementById('card-total-alunos');
-            const cardDisciplinasEl = document.getElementById('card-disciplinas');
-            const qtdDisciplinasEl = document.getElementById('resumo-disciplinas-qtd');
+// ===== TABELA =====
+function renderizarTabela(data) {
+    const corpo = document.getElementById('tabela-corpo');
+    corpo.innerHTML = '';
 
-            totalAlunosEl.textContent = data.length;
+    data.forEach(a => {
+        corpo.innerHTML += `
+        <tr>
+            <td class="px-4 py-2">${a.Nome}</td>
+            <td class="px-4 py-2">${a.Matrícula}</td>
+            <td class="px-4 py-2">${a.Disciplina}</td>
+            <td class="px-4 py-2 text-center text-red-600 font-bold">${a['Total Faltas (Mês)']}</td>
+            <td class="px-4 py-2">${a['Datas das Faltas']}</td>
+        </tr>`;
+    });
+}
 
-            const disciplinasMap = {};
+// ===== CARDS =====
+function atualizarCardsResumo(data) {
+    document.getElementById('card-total-alunos').innerText = data.length;
 
-            data.forEach(aluno => {
-                const disciplina = (aluno.Disciplina || 'Não identificada').trim();
-                if (!disciplinasMap[disciplina]) {
-                    disciplinasMap[disciplina] = 0;
-                }
-                disciplinasMap[disciplina] += 1;
-            });
+    const map = {};
+    data.forEach(a => {
+        map[a.Disciplina] = (map[a.Disciplina] || 0) + 1;
+    });
 
-            const disciplinasOrdenadas = Object.entries(disciplinasMap)
-                .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR', { sensitivity: 'base' }));
+    const lista = Object.entries(map).sort((a,b)=>b[1]-a[1]);
 
-            qtdDisciplinasEl.textContent = `${disciplinasOrdenadas.length} disciplina${disciplinasOrdenadas.length === 1 ? '' : 's'}`;
+    document.getElementById('resumo-disciplinas-qtd').innerText = lista.length;
 
-            if (disciplinasOrdenadas.length === 0) {
-                cardDisciplinasEl.innerHTML = `<p class="text-sm text-gray-400 italic">Nenhum dado para exibir.</p>`;
-                return;
-            }
+    document.getElementById('card-disciplinas').innerHTML = lista.map(([d,t])=>`
+        <div onclick="filtrarPorDisciplina('${d}')"
+            class="flex justify-between border p-2 rounded cursor-pointer hover:bg-blue-50">
+            <span>${d}</span>
+            <span class="font-bold text-blue-700">${t}</span>
+        </div>
+    `).join('');
+}
 
-            cardDisciplinasEl.innerHTML = disciplinasOrdenadas.map(([disciplina, total]) => `
-                <div 
-                    onclick="filtrarPorDisciplina('${disciplina.replace(/'/g, "\\'")}')"
-                    class="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 cursor-pointer hover:bg-blue-50 transition"
-                >
-                    <span class="text-sm font-medium text-gray-700">${disciplina}</span>
-                    <span class="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-bold text-blue-800">
-                        ${total}
-                    </span>
-                </div>
-            `).join('');
-        }
-        
-        function filtrarPorDisciplina(disciplina) {
-            const input = document.getElementById('busca_geral');
-            input.value = disciplina;
-            filtrarTabela();
-        }
+// ===== FILTROS =====
+function filtrarPorDisciplina(d) {
+    document.getElementById('busca_geral').value = d;
+    filtrarTabela();
+}
 
-        function limparFiltro() {
-            const input = document.getElementById('busca_geral');
-            input.value = '';
-            filtrarTabela();
-        }
+function limparFiltro() {
+    document.getElementById('busca_geral').value = '';
+    filtrarTabela();
+}
+</script>
 
-        function alternarOrdenacao() {
-            ordemDesc = !ordemDesc;
-            filtrarTabela();
-        }
-        
-        function renderizarTabela(data) {
-            const corpo = document.getElementById('tabela-corpo');
-            corpo.innerHTML = '';
-
-            data.forEach(aluno => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${aluno.Nome}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-gray-600">${aluno.Matrícula}</td>
-                    <td class="px-6 py-4 text-gray-600">${aluno.Disciplina}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-center font-bold text-red-600">${aluno['Total Faltas (Mês)']}</td>
-                    <td class="px-6 py-4 text-xs text-gray-500 italic">${aluno['Datas das Faltas']}</td>
-                `;
-                corpo.appendChild(tr);
-            });
-        }
-    </script>
 </body>
 </html>
