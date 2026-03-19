@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presença.edu - Análise de Evasão</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+    <style>
+        .celula-falta {
+            background-color: #f3e8ff;
+            color: #000000 !important;
+        }
+
+        .celula-presenca-75 {
+            background-color: #fef3c7;
+            color: #000000 !important;
+        }
+
+        .celula-presenca-baixa {
+            background-color: #fee2e2;
+            color: #000000 !important;
+        }
+
+        .celula-neutra {
+            color: #000000 !important;
+        }
+
+        #modal-periodos {
+            backdrop-filter: blur(3px);
+        }
+
+        .periodo-card {
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            transition: border-color 0.15s;
+        }
+
+        .toggle-grupo {
+            display: inline-flex;
+            background: #f1f5f9;
+            border-radius: 9999px;
+            padding: 3px;
+            gap: 2px;
+        }
+
+        .toggle-grupo button {
+            border: none;
+            background: transparent;
+            border-radius: 9999px;
+            padding: 7px 20px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+            color: #64748b;
+            letter-spacing: 0.02em;
+        }
+
+        .toggle-grupo button.ativo {
+            background: #1d4ed8;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(29, 78, 216, 0.25);
+        }
+
+        .toggle-grupo button.ativo-4 {
+            background: #7c3aed;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(124, 58, 237, 0.25);
+        }
+
+        .btn-pagina-ativa {
+            background: #1d4ed8 !important;
+            color: #fff !important;
+            border-color: #1d4ed8 !important;
+            font-weight: 700;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen font-sans">
+
+    <!-- ── Conteúdo centralizado (cards, filtros, etc.) ── -->
+    <div class="max-w-7xl mx-auto py-10 px-4">
+        <header class="mb-10 text-center">
+            <div class="flex justify-center mb-4">
+                <img src="iffar-horizontal.png" alt="Logo IFFar" class="h-20 object-contain">
+            </div>
+            <h1 class="text-3xl font-bold text-blue-800">Presente.edu</h1>
+            <h2 class="text-2xl font-semibold text-gray-900 mt-1">Análise de frequências</h2>
+        </header>
+
+        <!-- Upload -->
+        <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Selecione um ou mais arquivos PDF contendo os diários de classes (parciais ou finais).
+                    </label>
+                    <input type="file" id="arquivos" multiple accept=".pdf"
+                        class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:bg-blue-50 file:text-blue-700">
+                </div>
+                <button onclick="iniciarProcessamento()" id="btn-processar"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg">
+                    Processar Relatório
+                </button>
+            </div>
+        </div>
+
+        <!-- Abas -->
+        <div class="bg-white rounded-xl shadow-md mb-6">
+            <div class="flex border-b">
+                <button id="tab-frequencia" onclick="trocarAba('frequencia')"
+                    class="flex-1 px-4 py-3 font-semibold text-blue-700 border-b-2 border-blue-600 bg-blue-50 rounded-tl-xl">
+                    Frequência geral por mês
+                </button>
+                <button id="tab-evasao" onclick="trocarAba('evasao')"
+                    class="flex-1 px-4 py-3 font-semibold text-gray-600 hover:bg-gray-50 rounded-tr-xl">
+                    Busca por mês
+                </button>
+            </div>
+            <div class="p-4 text-sm text-gray-600">
+                <span id="descricao-aba">Visualize a frequência dos alunos em todos os meses disponíveis no
+                    diário.</span>
+            </div>
+        </div>
+
+        <!-- Seletor de mês (aba evasão) -->
+        <div id="painel-mes" class="hidden bg-white p-6 rounded-xl shadow-md mb-8">
+            <div class="max-w-sm">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Mês de Análise</label>
+                <select id="mes_analise" class="w-full border-gray-300 rounded-lg shadow-sm p-2 border text-black">
+                    <option value="Janeiro">Janeiro</option>
+                    <option value="Fevereiro">Fevereiro</option>
+                    <option value="Março" selected>Março</option>
+                    <option value="Abril">Abril</option>
+                    <option value="Maio">Maio</option>
+                    <option value="Junho">Junho</option>
+                    <option value="Julho">Julho</option>
+                    <option value="Agosto">Agosto</option>
+                    <option value="Setembro">Setembro</option>
+                    <option value="Outubro">Outubro</option>
+                    <option value="Novembro">Novembro</option>
+                    <option value="Dezembro">Dezembro</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="hidden text-center py-10">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p class="mt-4 text-gray-600">Analisando documentos... isso pode levar alguns segundos.</p>
+        </div>
+
+        <!-- ══════════════════════════════════════════
+             LINHA PRINCIPAL: cards à esquerda | disciplinas à direita
+        ══════════════════════════════════════════ -->
+        <div class="flex flex-col lg:flex-row gap-6 mb-8">
+
+            <!-- COLUNA ESQUERDA: 3 cards quantitativos empilhados -->
+            <div class="flex flex-col gap-4 lg:w-72 shrink-0">
+                <div class="bg-white rounded-xl shadow-md p-6 text-center">
+                    <p id="titulo-card-total" class="text-sm text-gray-500 uppercase font-bold">Total de alunos</p>
+                    <p id="card-total-alunos" class="mt-4 text-5xl font-extrabold text-blue-700">0</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-md p-6 text-center">
+                    <p class="text-sm text-gray-500 uppercase font-bold">Frequência média</p>
+                    <p id="card-frequencia-media" class="mt-4 text-5xl font-extrabold text-green-600">0%</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-md p-6 text-center border-l-4 border-red-500">
+                    <p class="text-sm text-gray-500 uppercase font-bold">Alertas de evasão</p>
+                    <p id="card-alertas" class="mt-4 text-5xl font-extrabold text-red-500">0</p>
+                </div>
+            </div>
+
+            <!-- COLUNA DIREITA: card de disciplinas -->
+            <div class="bg-white rounded-xl shadow-md p-6 flex-1 min-w-0">
+                <div class="flex justify-between mb-4">
+                    <p class="text-sm text-gray-500 uppercase font-semibold">Disciplinas × total de alunos</p>
+                    <div class="flex items-center gap-3">
+                        <span id="resumo-disciplinas-qtd" class="text-xs text-gray-400">0</span>
+                        <button onclick="limparFiltro()" class="text-xs text-blue-600 hover:underline">Limpar
+                            filtro</button>
+                    </div>
+                </div>
+                <!-- overflow-y-auto com altura máxima para alinhar com os cards da esquerda -->
+                <div id="card-disciplinas" class="overflow-y-auto max-h-96"></div>
+            </div>
+
+        </div>
+        <!-- ── fim da linha principal ── -->
+
+    </div>
+    <!-- ── fim do container centralizado ── -->
+
+    <!-- ══════════════════════════════════════════
+         TABELA — largura total da viewport
+    ══════════════════════════════════════════ -->
+    <div class="w-full px-4 pb-10">
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h2 id="titulo-tabela" class="font-bold">Relatório de frequência</h2>
+                <div class="flex items-center gap-2">
+                    <span id="label-mes" class="text-xs bg-blue-100 px-2 py-1 rounded">Todos os meses</span>
+                    <button onclick="gerarPdfTabelaAtual()"
+                        class="px-3 py-1 text-xs rounded bg-red-600 text-white font-semibold hover:bg-red-700 transition">
+                        PDF
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-4">
+                <input id="busca_geral" oninput="filtrarTabela()" placeholder="Buscar..."
+                    class="w-full border p-2 rounded">
+            </div>
+
+            <div class="overflow-x-auto w-full">
+                <table class="w-full text-sm border-collapse">
+                    <thead id="tabela-cabecalho"></thead>
+                    <tbody id="tabela-corpo"></tbody>
+                </table>
+            </div>
+
+            <div id="paginacao-container" class="hidden border-t px-4 py-3 bg-gray-50">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div class="text-sm text-gray-600"><span id="paginacao-info"></span></div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button onclick="irParaPagina(1)" id="btn-primeira"
+                            class="px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">Primeira</button>
+                        <button onclick="paginaAnterior()" id="btn-anterior"
+                            class="px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">Anterior</button>
+                        <div id="paginacao-botoes" class="flex items-center gap-1 flex-wrap"></div>
+                        <button onclick="proximaPagina()" id="btn-proxima"
+                            class="px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">Próxima</button>
+                        <button onclick="irParaPagina(totalPaginas)" id="btn-ultima"
+                            class="px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">Última</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="vazio" class="hidden text-center py-10 text-gray-500">Nenhum resultado encontrado</div>
+    </div>
+
+    <!-- MODAL: Confirmação de períodos (disciplinas 72h) -->
+    <div id="modal-periodos" class="hidden fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
+            <div class="bg-blue-700 px-6 py-5">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white/20 rounded-full p-2">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white">Configurar períodos por noite</h3>
+                        <p class="text-blue-200 text-sm mt-0.5">
+                            As disciplinas abaixo têm <strong class="text-white">72h</strong> de carga horária.
+                            Informe quantos períodos ocorrem em cada noite de aula.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="px-6 pt-5 pb-2">
+                <div class="flex gap-4 text-sm">
+                    <div class="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                        <span class="font-bold text-blue-700 text-base">2 períodos</span>
+                        <span class="text-blue-600">→ 36h/semestre</span>
+                    </div>
+                    <div class="flex items-center gap-2 bg-violet-50 border border-violet-200 rounded-lg px-3 py-2">
+                        <span class="font-bold text-violet-700 text-base">4 períodos</span>
+                        <span class="text-violet-600">→ 72h/semestre em noite única</span>
+                    </div>
+                </div>
+            </div>
+            <div id="lista-disciplinas-72h" class="px-6 py-4 space-y-3 max-h-72 overflow-y-auto"></div>
+            <div class="px-6 py-4 border-t bg-gray-50 flex justify-between items-center gap-3">
+                <p class="text-xs text-gray-500">Disciplinas de 36h são configuradas automaticamente como 2 períodos.
+                </p>
+                <button onclick="confirmarPeriodosEProcessar()"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-8 rounded-lg transition text-sm whitespace-nowrap">
+                    Confirmar e processar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Gráfico de frequência temporal -->
+    <div id="modal-frequencia" class="hidden fixed inset-0 z-50 bg-black/50 items-center justify-center p-4"
+        onclick="fecharModalFrequencia(event)">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden"
+            onclick="event.stopPropagation()">
+            <div class="flex items-start justify-between border-b px-6 py-4">
+                <div>
+                    <h3 class="text-xl font-bold text-gray-900">Frequência temporal</h3>
+                    <p id="modal-subtitulo" class="text-sm text-gray-600 mt-1"></p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button id="btn-pdf-aluno" onclick="gerarPdfConsolidadoAluno()"
+                        class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition">PDF</button>
+                    <button onclick="fecharModalFrequencia()"
+                        class="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
+                </div>
+            </div>
+            <div class="p-6">
+                <div class="mb-4 flex flex-wrap gap-3 text-sm">
+                    <span
+                        class="inline-flex items-center gap-2 rounded-full bg-green-50 px-3 py-1 text-green-700 border border-green-200">
+                        <span class="inline-block h-3 w-3 rounded-full bg-green-500"></span>Acima do limiar (75%)
+                    </span>
+                    <span
+                        class="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-red-700 border border-red-200">
+                        <span class="inline-block h-3 w-3 rounded-full bg-red-500"></span>Abaixo do limiar (75%)
+                    </span>
+                </div>
+                <div class="h-[420px]"><canvas id="grafico-frequencia"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="mt-10 bg-gray-100 border-t border-gray-200">
+        <div class="max-w-[98vw] mx-auto px-4 py-6 text-center">
+            <p class="text-sm text-gray-700 mb-4">
+                Desenvolvido por
+                <a href="mailto:rafael.parizi@iffar.edu.br" class="text-blue-700 font-semibold hover:underline">Rafael
+                    Parizi</a>
+            </p>
+            <div class="flex justify-center">
+                <img id="logo-iffar-footer" src="iffar-horizontal.png" alt="Logo IFFar" class="h-20 object-contain">
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        const API_URL = "https://conta-faltas.vercel.app";
+        // const API_URL = "http://127.0.0.1:5001";
+
+        let dadosTabela = [];
+        let cacheFrequencia = [];
+        let cacheEvasao = [];
+        let mesCacheEvasao = '';
+        let ordemDesc = true;
+        let colunaOrdenacao = 'nome';
+        let abaAtual = 'frequencia';
+        let graficoTemporal = null;
+        let alunoModalAtual = null;
+        let graficoConsolidado = null;
+        let registrosFiltradosAluno = [];
+
+        let dadosFiltradosAtuais = [];
+        let paginaAtual = 1;
+        const itensPorPagina = 35;
+        let totalPaginas = 1;
+
+        let _pesosConfirmados = {};
+        let _disciplinas72h = [];
+
+        const LIMIAR_PRESENCA = 75;
+
+        const ordemMeses = [
+            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+        ];
+
+        // ══════════════════════════════════════════════════
+        // PAGINAÇÃO — implementação completa
+        // ══════════════════════════════════════════════════
+
+        function atualizarPaginacao(dados) {
+            const container = document.getElementById('paginacao-container');
+            const total = dados ? dados.length : 0;
+
+            if (total <= itensPorPagina) {
+                container.classList.add('hidden');
+                return;
+            }
+
+            container.classList.remove('hidden');
+            totalPaginas = Math.ceil(total / itensPorPagina);
+
+            // Texto informativo: "Mostrando 1–35 de 120 registros"
+            const inicio = (paginaAtual - 1) * itensPorPagina + 1;
+            const fim = Math.min(paginaAtual * itensPorPagina, total);
+            document.getElementById('paginacao-info').innerText =
+                `Mostrando ${inicio}–${fim} de ${total} registros`;
+
+            // Habilita / desabilita botões Primeira / Anterior / Próxima / Última
+            document.getElementById('btn-primeira').disabled = paginaAtual === 1;
+            document.getElementById('btn-anterior').disabled = paginaAtual === 1;
+            document.getElementById('btn-proxima').disabled = paginaAtual === totalPaginas;
+            document.getElementById('btn-ultima').disabled = paginaAtual === totalPaginas;
+
+            // Botões numerados — mostra até 7 páginas ao redor da atual
+            const botoes = document.getElementById('paginacao-botoes');
+            botoes.innerHTML = '';
+
+            const JANELA = 3; // páginas antes e depois da atual
+            let inicio_p = Math.max(1, paginaAtual - JANELA);
+            let fim_p = Math.min(totalPaginas, paginaAtual + JANELA);
+
+            // Reequilibra a janela nas bordas
+            if (paginaAtual - JANELA < 1)
+                fim_p = Math.min(totalPaginas, fim_p + (JANELA - paginaAtual + 1));
+            if (paginaAtual + JANELA > totalPaginas)
+                inicio_p = Math.max(1, inicio_p - (paginaAtual + JANELA - totalPaginas));
+
+            // Ellipsis inicial
+            if (inicio_p > 1) {
+                botoes.appendChild(criarBtnPagina(1));
+                if (inicio_p > 2) botoes.appendChild(criarEllipsis());
+            }
+
+            for (let p = inicio_p; p <= fim_p; p++) {
+                botoes.appendChild(criarBtnPagina(p));
+            }
+
+            // Ellipsis final
+            if (fim_p < totalPaginas) {
+                if (fim_p < totalPaginas - 1) botoes.appendChild(criarEllipsis());
+                botoes.appendChild(criarBtnPagina(totalPaginas));
+            }
+        }
+
+        function criarBtnPagina(p) {
+            const btn = document.createElement('button');
+            btn.innerText = p;
+            btn.className = `px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 ${p === paginaAtual ? 'btn-pagina-ativa' : ''}`;
+            btn.onclick = () => irParaPagina(p);
+            return btn;
+        }
+
+        function criarEllipsis() {
+            const span = document.createElement('span');
+            span.innerText = '…';
+            span.className = 'px-1 text-gray-400 select-none';
+            return span;
+        }
+
+        function irParaPagina(pagina) {
+            pagina = Math.max(1, Math.min(pagina, totalPaginas));
+            if (pagina === paginaAtual) return;
+            paginaAtual = pagina;
+            filtrarTabela();
+            // Sobe para o topo da tabela
+            document.getElementById('tabela-cabecalho').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function paginaAnterior() {
+            if (paginaAtual > 1) irParaPagina(paginaAtual - 1);
+        }
+
+        function proximaPagina() {
+            if (paginaAtual < totalPaginas) irParaPagina(paginaAtual + 1);
+        }
+
+        // ══════════════════════════════════════════════════
+        // FLUXO PRINCIPAL — confirmação de períodos
+        // ══════════════════════════════════════════════════
+
+        async function iniciarProcessamento() {
+            const files = document.getElementById('arquivos').files;
+            if (files.length === 0) { alert("Selecione ao menos um PDF"); return; }
+            cacheFrequencia = [];
+            cacheEvasao = [];
+            mesCacheEvasao = '';
+
+            const formCheck = new FormData();
+            for (let f of files) formCheck.append('arquivos', f);
+
+            document.getElementById('loading').classList.remove('hidden');
+
+            try {
+                const res = await fetch(`${API_URL}/check-disciplines`, { method: 'POST', body: formCheck });
+                const disciplinas = await res.json();
+
+                const precisamConfirmar = disciplinas.filter(d => d.requer_confirmacao);
+                _pesosConfirmados = {};
+                disciplinas.forEach(d => { _pesosConfirmados[d.codigo] = d.peso_sugerido; });
+
+                if (precisamConfirmar.length > 0) {
+                    _disciplinas72h = precisamConfirmar;
+                    document.getElementById('loading').classList.add('hidden');
+                    abrirModalPeriodos(precisamConfirmar);
+                } else {
+                    await executarProcessamento();
+                }
+            } catch (e) {
+                alert("Erro ao verificar disciplinas: " + e.message);
+                document.getElementById('loading').classList.add('hidden');
+                console.error(e);
+            }
+        }
+
+        function abrirModalPeriodos(disciplinas) {
+            const lista = document.getElementById('lista-disciplinas-72h');
+            lista.innerHTML = '';
+            disciplinas.forEach(d => {
+                const pesoAtual = _pesosConfirmados[d.codigo] || 4;
+                const card = document.createElement('div');
+                card.className = 'periodo-card';
+                card.innerHTML = `
+                    <div class="flex items-center justify-between gap-4 flex-wrap">
+                        <div class="flex-1 min-w-0">
+                            <div class="font-bold text-gray-800 text-sm truncate">${d.disciplina}</div>
+                            <div class="text-xs text-gray-500 mt-0.5">
+                                Cód: <span class="font-mono">${d.codigo}</span>
+                                &nbsp;·&nbsp; CH: <strong>${d.carga_horaria}h</strong>
+                                &nbsp;·&nbsp; Docente: ${d.docente || '—'}
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            <span class="text-[10px] text-gray-400 uppercase font-semibold tracking-wider">Períodos por dia de aula</span>
+                            <div class="toggle-grupo" id="toggle-${d.codigo}">
+                                <button onclick="selecionarPeriodo('${d.codigo}', 2, this)" class="${pesoAtual === 2 ? 'ativo' : ''}">2 períodos</button>
+                                <button onclick="selecionarPeriodo('${d.codigo}', 4, this)" class="${pesoAtual === 4 ? 'ativo ativo-4' : ''}">4 períodos</button>
+                            </div>
+                        </div>
+                    </div>`;
+                lista.appendChild(card);
+            });
+            document.getElementById('modal-periodos').classList.remove('hidden');
+        }
+
+        function selecionarPeriodo(codigo, valor, btnClicado) {
+            _pesosConfirmados[codigo] = valor;
+            const grupo = document.getElementById(`toggle-${codigo}`);
+            grupo.querySelectorAll('button').forEach(btn => { btn.className = ''; });
+            btnClicado.className = valor === 2 ? 'ativo' : 'ativo ativo-4';
+        }
+
+        async function confirmarPeriodosEProcessar() {
+            document.getElementById('modal-periodos').classList.add('hidden');
+            document.getElementById('loading').classList.remove('hidden');
+            await executarProcessamento();
+        }
+
+        async function executarProcessamento() {
+            const files = document.getElementById('arquivos').files;
+            const formData = new FormData();
+            if (abaAtual === 'evasao') formData.append('mes', document.getElementById('mes_analise').value);
+            for (let f of files) formData.append('arquivos', f);
+            formData.append('pesos', JSON.stringify(_pesosConfirmados));
+
+            try {
+                const endpoint = abaAtual === 'evasao' ? '/analyze' : '/analyze-frequency';
+                const res = await fetch(`${API_URL}${endpoint}`, { method: 'POST', body: formData });
+                dadosTabela = await res.json();
+
+                if (abaAtual === 'frequencia') {
+                    cacheFrequencia = [...dadosTabela];
+                } else {
+                    cacheEvasao = [...dadosTabela];
+                    mesCacheEvasao = document.getElementById('mes_analise').value;
+                }
+
+                paginaAtual = 1;
+                filtrarTabela();
+            } catch (e) {
+                alert("Erro na API");
+                console.error(e);
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
+            }
+        }
+
+        // ══════════════════════════════════════════════════
+        // RESTANTE DO CÓDIGO — sem alterações
+        // ══════════════════════════════════════════════════
+
+        const monthBandPlugin = {
+            id: 'monthBandPlugin',
+            beforeDatasetsDraw(chart) {
+                const { ctx, chartArea, scales } = chart;
+                if (!chartArea || !scales.x || !scales.y) return;
+                const meta = chart.getDatasetMeta(0);
+                const data = chart.data.datasets[0].data || [];
+                if (!meta || !meta.data || meta.data.length === 0) return;
+                ctx.save();
+                meta.data.forEach((point, index) => {
+                    const currentX = point.x;
+                    const prevX = index > 0 ? meta.data[index - 1].x : null;
+                    const nextX = index < meta.data.length - 1 ? meta.data[index + 1].x : null;
+                    let left = prevX === null ? chartArea.left : (prevX + currentX) / 2;
+                    let right = nextX === null ? chartArea.right : (currentX + nextX) / 2;
+                    const valor = Number(data[index] || 0);
+                    ctx.fillStyle = valor >= LIMIAR_PRESENCA ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.12)';
+                    ctx.fillRect(left, chartArea.top, right - left, chartArea.bottom - chartArea.top);
+                });
+                const yThreshold = scales.y.getPixelForValue(LIMIAR_PRESENCA);
+                ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2; ctx.setLineDash([6, 6]);
+                ctx.beginPath(); ctx.moveTo(chartArea.left, yThreshold); ctx.lineTo(chartArea.right, yThreshold); ctx.stroke();
+                ctx.setLineDash([]); ctx.restore();
+                ctx.fillStyle = '#dc2626'; ctx.font = 'bold 12px sans-serif';
+                ctx.fillText(`LIMIAR CRÍTICO ${LIMIAR_PRESENCA}%`, chartArea.left + 5, yThreshold - 5);
+            }
+        };
+
+        function normalizarNumero(valor) {
+            if (valor === null || valor === undefined || valor === '') return null;
+            const texto = String(valor).replace('%', '').replace(',', '.').trim();
+            const numero = Number(texto);
+            return Number.isFinite(numero) ? numero : null;
+        }
+
+        function obterSerieTemporal(aluno) {
+            const labels = [], valores = [];
+            ordemMeses.forEach(mes => {
+                const valor = normalizarNumero(aluno[`${mes}_%_Presença`]);
+                if (valor !== null) { labels.push(mes); valores.push(valor); }
+            });
+            return { labels, valores };
+        }
+
+        function montarHtmlDisciplinaComMetadados(a) {
+            const discLimpa = (a.Disciplina || '').split('Créditos:')[0].trim();
+            return `<div class="py-1">
+                <div class="font-bold text-black text-sm">${discLimpa}</div>
+                <div class="text-[10px] text-blue-600 font-bold uppercase">${a.Curso || ''}</div>
+                <div class="text-[11px] text-gray-700 mt-1"><span class="font-medium">Docente:</span> ${a['Matrícula Docente'] || ''} ${a.Docente || ''}</div>
+            </div>`;
+        }
+
+        function abrirModalConsolidadoAluno(matricula) {
+            registrosFiltradosAluno = dadosTabela.filter(item => String(item.Matrícula) === String(matricula));
+            if (registrosFiltradosAluno.length === 0) { alert("Nenhum dado encontrado para esta matrícula."); return; }
+            const testeSerie = obterSerieTemporal(registrosFiltradosAluno[0]);
+            if (testeSerie.valores.length === 0) {
+                alert("Atenção: O gráfico temporal requer os dados da aba 'Frequência Geral'. Processe os arquivos na aba anterior para visualizar as linhas de tendência.");
+                return;
+            }
+            const aluno = registrosFiltradosAluno[0];
+            document.getElementById('modal-subtitulo').innerText = `Relatório Consolidado: ${aluno.Nome} (${matricula})`;
+            const modal = document.getElementById('modal-frequencia');
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+            const ctx = document.getElementById('grafico-frequencia').getContext('2d');
+            if (graficoTemporal) graficoTemporal.destroy();
+            const cores = ['#1d4ed8', '#dc2626', '#16a34a', '#ca8a04', '#9333ea', '#0891b2'];
+            const datasets = registrosFiltradosAluno.map((reg, index) => {
+                const serie = obterSerieTemporal(reg);
+                const cor = cores[index % cores.length];
+                return { label: (reg.Disciplina || '').split('Créditos:')[0].trim(), data: serie.valores, borderColor: cor, backgroundColor: cor, tension: 0.3, fill: false, pointRadius: 5, pointHoverRadius: 8, borderWidth: 3 };
+            });
+            graficoTemporal = new Chart(ctx, {
+                type: 'line',
+                data: { labels: obterSerieTemporal(registrosFiltradosAluno[0]).labels, datasets },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: true, position: 'bottom', labels: { padding: 20, font: { size: 12, weight: 'bold' } } }, tooltip: { mode: 'index', intersect: false } },
+                    scales: { y: { min: 0, max: 100, title: { display: true, text: '% de Presença' }, ticks: { callback: v => v + '%' } }, x: { title: { display: true, text: 'Meses do Semestre' } } }
+                },
+                plugins: [monthBandPlugin]
+            });
+            document.getElementById('btn-pdf-aluno').onclick = () => gerarPdfConsolidadoAluno();
+        }
+
+        function abrirModalFrequencia(alunoIndex) {
+            const aluno = dadosTabela[alunoIndex];
+            if (!aluno) return;
+            registrosFiltradosAluno = [aluno];
+            abrirModalConsolidadoAluno(aluno.Matrícula);
+        }
+
+        function fecharModalFrequencia(event) {
+            if (event && event.target !== document.getElementById('modal-frequencia')) return;
+            document.getElementById('modal-frequencia').classList.add('hidden');
+            document.getElementById('modal-frequencia').classList.remove('flex');
+        }
+
+        function carregarImagemComoBase64(imgElement) {
+            return new Promise((resolve, reject) => {
+                if (!imgElement) { reject(new Error('Imagem não encontrada.')); return; }
+                const draw = () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = imgElement.naturalWidth; canvas.height = imgElement.naturalHeight;
+                        canvas.getContext('2d').drawImage(imgElement, 0, 0);
+                        resolve(canvas.toDataURL('image/png'));
+                    } catch (e) { reject(e); }
+                };
+                if (imgElement.complete && imgElement.naturalWidth > 0) draw();
+                else { imgElement.onload = draw; imgElement.onerror = () => reject(new Error('Erro ao carregar imagem.')); }
+            });
+        }
+
+        function gerarPdfTabelaAtual() {
+            if (abaAtual === 'evasao') gerarPdfDetalhamentoMensal();
+            else gerarPdfFrequenciaGeral();
+        }
+
+        async function gerarPdfDetalhamentoMensal() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const dadosParaPdf = [...dadosFiltradosAtuais];
+            const logoImg = document.getElementById('logo-iffar-footer');
+            const mesReferencia = document.getElementById('label-mes').innerText;
+            if (!dadosParaPdf.length) { alert("Não há dados para gerar o PDF."); return; }
+            const margemEsq = 14, larguraUtil = 182;
+            let y = 20;
+            const desenharCabecalhoMensal = async () => {
+                doc.setFillColor(34, 139, 34); doc.rect(margemEsq, 15, larguraUtil, 20, 'F');
+                try { doc.addImage(await carregarImagemComoBase64(logoImg), 'PNG', margemEsq + 2, 17, 35, 16); } catch (e) { }
+                doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
+                doc.text("RELATÓRIO MENSAL DE ASSIDUIDADE", margemEsq + 45, 25);
+                doc.setFontSize(10); doc.text(`Período de Referência: ${mesReferencia}`, margemEsq + 45, 30);
+            };
+            await desenharCabecalhoMensal(); y = 45;
+            for (const [idx, item] of dadosParaPdf.entries()) {
+                if (y > 240) { doc.addPage(); await desenharCabecalhoMensal(); y = 45; }
+                doc.setFillColor(245, 245, 245); doc.rect(margemEsq, y, larguraUtil, 7, 'F');
+                doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(0, 0, 0);
+                doc.text(`${idx + 1}. ${item.Nome} (Matrícula: ${item.Matrícula})`, margemEsq + 2, y + 5); y += 12;
+                doc.setFontSize(9);
+                doc.setFont("helvetica", "bold"); doc.text("CURSO:", margemEsq, y); doc.setFont("helvetica", "normal"); doc.text(item.Curso || "Não informado", margemEsq + 15, y); y += 5;
+                doc.setFont("helvetica", "bold"); doc.text("DISCIPLINA:", margemEsq, y); doc.setFont("helvetica", "normal"); doc.text((item.Disciplina || '').split('Cr')[0].trim(), margemEsq + 20, y); y += 5;
+                doc.setFont("helvetica", "bold"); doc.text("DOCENTE:", margemEsq, y); doc.setFont("helvetica", "normal"); doc.text(item.Docente || "Não informado", margemEsq + 20, y); y += 8;
+                doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text(`Detalhamento de Ausências em ${mesReferencia}:`, margemEsq, y); y += 5;
+                const faltasTexto = item['Datas das Faltas'];
+                if (faltasTexto) {
+                    faltasTexto.split(', ').forEach(data => {
+                        if (y > 275) { doc.addPage(); desenharCabecalhoMensal(); y = 45; }
+                        doc.setFont("helvetica", "normal"); doc.setFontSize(8);
+                        doc.setFillColor(200, 0, 0); doc.circle(margemEsq + 2, y - 1, 0.6, 'F');
+                        doc.text(data, margemEsq + 5, y); y += 5;
+                    });
+                } else { doc.setFont("helvetica", "italic"); doc.text("Nenhuma falta registrada neste período.", margemEsq + 5, y); y += 5; }
+                y += 2; doc.setDrawColor(34, 139, 34); doc.setLineWidth(0.4); doc.line(margemEsq, y, margemEsq + larguraUtil, y); y += 5;
+                doc.setFont("helvetica", "bold"); doc.setFontSize(9);
+                doc.text(`Total de faltas no mês: ${item['Total Faltas (Mês)'] || 0}`, margemEsq, y); y += 15;
+            }
+            const tp = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= tp; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150); doc.text(`Página ${i} de ${tp} | Sistema de Monitoramento IFFar`, margemEsq, 285); }
+            doc.save(`Detalhamento_Faltas_${mesReferencia.replace(/\s+/g, '_')}.pdf`);
+        }
+
+        async function gerarPdfFrequenciaGeral() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const dadosParaPdf = [...dadosFiltradosAtuais];
+            const logoImg = document.getElementById('logo-iffar-footer');
+            if (!dadosParaPdf.length) { alert("Não há dados para gerar o PDF."); return; }
+            const margemEsq = 14, larguraUtil = 182;
+            let y = 20;
+            const desenharCabecalhoPagina = async () => {
+                doc.setFillColor(34, 139, 34); doc.rect(margemEsq, 15, larguraUtil, 20, 'F');
+                try { doc.addImage(await carregarImagemComoBase64(logoImg), 'PNG', margemEsq + 2, 17, 35, 16); } catch (e) { }
+                doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
+                doc.text("COORDENAÇÃO DE CURSO", margemEsq + 45, 25);
+                doc.setFontSize(10); doc.text("Relatório Consolidado de Frequência Geral", margemEsq + 45, 30);
+            };
+            await desenharCabecalhoPagina(); y = 45;
+            for (const [idx, item] of dadosParaPdf.entries()) {
+                if (y > 230) { doc.addPage(); await desenharCabecalhoPagina(); y = 45; }
+                doc.setFillColor(240, 240, 240); doc.rect(margemEsq, y, larguraUtil, 8, 'F');
+                doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(0, 0, 0);
+                doc.text(`${idx + 1}. ${item.Nome} (${item.Matrícula})`, margemEsq + 2, y + 5.5); y += 12;
+                doc.setFontSize(8); doc.setTextColor(0, 0, 0);
+                doc.setFont("helvetica", "bold"); doc.text("CURSO:", margemEsq, y); doc.setFont("helvetica", "normal"); doc.text(item.Curso || "Não informado", margemEsq + 15, y); y += 5;
+                doc.setFont("helvetica", "bold"); doc.text("DISCIPLINA:", margemEsq, y); doc.setFont("helvetica", "normal"); doc.text((item.Disciplina || '').split('Cr')[0].trim(), margemEsq + 20, y); y += 5;
+                doc.setFont("helvetica", "bold"); doc.text("DOCENTE:", margemEsq, y); doc.setFont("helvetica", "normal"); doc.text(item.Docente || "Não informado", margemEsq + 18, y); y += 8;
+                doc.setFillColor(230, 230, 230); doc.rect(margemEsq, y, larguraUtil, 6, 'F');
+                doc.setFont("helvetica", "bold"); doc.text("MÊS", margemEsq + 5, y + 4); doc.text("AULAS", margemEsq + 60, y + 4); doc.text("FALTAS", margemEsq + 100, y + 4); doc.text("% PRESENÇA", margemEsq + 140, y + 4); y += 6;
+                let temDadosMes = false;
+                ordemMeses.forEach(mes => {
+                    const aulas = item[`${mes}_Total_Aulas`];
+                    if (aulas !== undefined && aulas !== "" && aulas > 0) {
+                        temDadosMes = true;
+                        const faltas = item[`${mes}_Dias_Faltados`] ?? 0;
+                        const perc = item[`${mes}_%_Presença`] ?? "0";
+                        doc.setFont("helvetica", "normal");
+                        doc.text(mes, margemEsq + 5, y + 4); doc.text(String(aulas), margemEsq + 60, y + 4); doc.text(String(faltas), margemEsq + 100, y + 4);
+                        if (parseFloat(perc) < 75) doc.setTextColor(200, 0, 0);
+                        doc.text(`${perc}%`, margemEsq + 140, y + 4); doc.setTextColor(0, 0, 0); y += 5;
+                    }
+                });
+                if (!temDadosMes) { doc.setFont("helvetica", "italic"); doc.text("Sem registros mensais detalhados neste diário.", margemEsq + 5, y + 4); y += 5; }
+                y += 2; doc.setDrawColor(34, 139, 34); doc.setLineWidth(0.5); doc.line(margemEsq, y, margemEsq + larguraUtil, y); y += 4;
+                doc.setFont("helvetica", "bold");
+                const totalFaltas = item['Total_Dias_Faltados_Geral'] || 0;
+                const totalPerc = item['%_Presença_Geral'] || 0;
+                doc.text(`RESULTADO ACUMULADO:`, margemEsq, y); doc.text(`Faltas Totais: ${totalFaltas}`, margemEsq + 80, y);
+                if (parseFloat(totalPerc) < 75) doc.setTextColor(200, 0, 0);
+                doc.text(`Presença Geral: ${totalPerc}%`, margemEsq + 140, y); doc.setTextColor(0, 0, 0); y += 15;
+            }
+            const paginas = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= paginas; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150); doc.text(`Gerado em: ${new Date().toLocaleString()} | Página ${i} de ${paginas}`, margemEsq, 285); }
+            doc.save("Frequencia_Geral_Completa_IFFar.pdf");
+        }
+
+        async function trocarAba(aba) {
+            abaAtual = aba;
+            paginaAtual = 1;
+            document.getElementById('busca_geral').value = '';
+
+            const tabFreq = document.getElementById('tab-frequencia');
+            const tabEvasao = document.getElementById('tab-evasao');
+            const descricao = document.getElementById('descricao-aba');
+            const painelMes = document.getElementById('painel-mes');
+            const labelMes = document.getElementById('label-mes');
+            const tituloTabela = document.getElementById('titulo-tabela');
+            const tituloCard = document.getElementById('titulo-card-total');
+            const files = document.getElementById('arquivos').files;
+
+            if (aba === 'frequencia') {
+                tabFreq.className = 'flex-1 px-4 py-3 font-semibold text-blue-700 border-b-2 border-blue-600 bg-blue-50 rounded-tl-xl';
+                tabEvasao.className = 'flex-1 px-4 py-3 font-semibold text-gray-600 hover:bg-gray-50 rounded-tr-xl';
+
+                descricao.innerText = 'Visualize a frequência dos alunos em todos os meses disponíveis no diário.';
+                painelMes.classList.add('hidden');
+                labelMes.innerText = 'Todos os meses';
+                tituloTabela.innerText = 'Relatório de frequência por mês';
+                tituloCard.innerText = 'Total de alunos';
+                colunaOrdenacao = 'nome';
+                ordemDesc = false;
+
+                if (cacheFrequencia.length > 0) {
+                    dadosTabela = [...cacheFrequencia];
+                    filtrarTabela();
+                    return;
+                }
+
+                if (files.length > 0) {
+                    document.getElementById('loading').classList.remove('hidden');
+                    await executarProcessamento();
+                    return;
+                }
+            } else {
+                tabFreq.className = 'flex-1 px-4 py-3 font-semibold text-gray-600 hover:bg-gray-50 rounded-tl-xl';
+                tabEvasao.className = 'flex-1 px-4 py-3 font-semibold text-blue-700 border-b-2 border-blue-600 bg-blue-50 rounded-tr-xl';
+
+                descricao.innerText = 'Busque alunos com padrão de evasão considerando o mês selecionado.';
+                painelMes.classList.remove('hidden');
+                labelMes.innerText = document.getElementById('mes_analise').value;
+                tituloTabela.innerText = 'Alunos com evasão';
+                tituloCard.innerText = 'Total de alunos faltantes';
+                colunaOrdenacao = 'faltas';
+                ordemDesc = true;
+
+                const mesAtual = document.getElementById('mes_analise').value;
+
+                if (cacheEvasao.length > 0 && mesCacheEvasao === mesAtual) {
+                    dadosTabela = [...cacheEvasao];
+                    filtrarTabela();
+                    return;
+                }
+
+                if (files.length > 0) {
+                    document.getElementById('loading').classList.remove('hidden');
+                    await executarProcessamento();
+                    return;
+                }
+            }
+
+            dadosTabela = [];
+            dadosFiltradosAtuais = [];
+            renderizarTabela([]);
+            atualizarCardsResumo([]);
+            atualizarPaginacao([]);
+            document.getElementById('vazio').classList.add('hidden');
+        }
+
+        function filtrarTabela() {
+            const termo = document.getElementById('busca_geral').value.toLowerCase();
+
+            dadosFiltradosAtuais = dadosTabela.filter(a =>
+                (a.Nome || '').toLowerCase().includes(termo) ||
+                (a.Disciplina || '').toLowerCase().includes(termo) ||
+                String(a['Matrícula'] || '').toLowerCase().includes(termo) ||
+                String(a['Docente'] || '').toLowerCase().includes(termo)
+            );
+
+            // ORDENAÇÃO
+            if (colunaOrdenacao === 'faltas_geral') {
+                dadosFiltradosAtuais.sort((a, b) => {
+                    const va = Number(a['Total_Dias_Faltados_Geral'] || 0);
+                    const vb = Number(b['Total_Dias_Faltados_Geral'] || 0);
+                    return ordemDesc ? vb - va : va - vb;
+                });
+            } else if (colunaOrdenacao === 'percentual_geral') {
+                dadosFiltradosAtuais.sort((a, b) => {
+                    const va = Number(a['%_Presença_Geral'] || 0);
+                    const vb = Number(b['%_Presença_Geral'] || 0);
+                    return ordemDesc ? vb - va : va - vb;
+                });
+            }
+
+            totalPaginas = Math.max(1, Math.ceil(dadosFiltradosAtuais.length / itensPorPagina));
+
+            if (paginaAtual > totalPaginas) paginaAtual = 1;
+
+            const inicio = (paginaAtual - 1) * itensPorPagina;
+            renderizarTabela(dadosFiltradosAtuais.slice(inicio, inicio + itensPorPagina));
+            atualizarCardsResumo(dadosFiltradosAtuais);
+            atualizarPaginacao(dadosFiltradosAtuais);
+            document.getElementById('vazio').classList.toggle('hidden', dadosFiltradosAtuais.length > 0);
+        }
+
+        function atualizarCabecalhoTabela() {
+            const thead = document.getElementById('tabela-cabecalho');
+            if (abaAtual === 'evasao') {
+                thead.innerHTML = `<tr class="bg-gray-100 text-gray-700">
+                    <th class="px-4 py-2 text-left">Nome ⬍</th>
+                    <th class="px-4 py-2 text-center whitespace-nowrap">Temporal</th>
+                    <th class="px-4 py-2 text-left">Matrícula</th>
+                    <th class="px-4 py-2 text-left">Disciplina</th>
+                    <th class="px-4 py-2 text-center">Faltas ⬍</th>
+                    <th class="px-4 py-2 text-left">Datas</th>
+                </tr>`;
+            } else {
+                let linhaMeses = `<tr class="bg-gray-200 text-gray-800">
+                    <th rowspan="2" class="px-4 py-2 text-left whitespace-nowrap align-middle">Nome ⬍</th>
+                    <th rowspan="2" class="px-4 py-2 text-center whitespace-nowrap align-middle">Temporal</th>
+                    <th rowspan="2" class="px-4 py-2 text-left whitespace-nowrap align-middle">Matrícula</th>
+                    <th rowspan="2" class="px-4 py-2 text-left whitespace-nowrap align-middle">Disciplina</th>`;
+                let linhaSub = `<tr class="bg-gray-100 text-gray-700">`;
+                ordemMeses.forEach(mes => {
+                    if (dadosTabela.some(item => Object.prototype.hasOwnProperty.call(item, `${mes}_Total_Aulas`))) {
+                        linhaMeses += `<th colspan="3" class="text-center font-bold border-l border-gray-300 px-2 py-2">${mes}</th>`;
+                        linhaSub += `<th class="px-2 py-2 text-center border-l border-gray-200">Aulas</th><th class="px-2 py-2 text-center">Faltas</th><th class="px-2 py-2 text-center">%</th>`;
+                    }
+                });
+                linhaMeses += `<th rowspan="2" onclick="ordenarPorFaltasGeral()" class="px-4 py-2 text-center border-l border-gray-300 align-middle cursor-pointer hover:bg-gray-300">Faltas Geral ⬍</th><th rowspan="2" onclick="ordenarPorPercentualGeral()" class="px-4 py-2 text-center align-middle cursor-pointer hover:bg-gray-300">% Geral ⬍</th></tr>`;
+                thead.innerHTML = linhaMeses + linhaSub + `</tr>`;
+            }
+        }
+
+        async function gerarPdfConsolidadoAluno() {
+            if (!registrosFiltradosAluno || registrosFiltradosAluno.length === 0) {
+                alert("Nenhum dado encontrado para gerar o PDF consolidado.");
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const alunoPrincipal = registrosFiltradosAluno[0];
+
+            let logoBase64 = null;
+            try {
+                logoBase64 = await carregarImagemComoBase64(document.getElementById('logo-iffar-footer'));
+            } catch (e) {
+                console.warn("Erro ao carregar logo:", e);
+            }
+
+            const canvas = document.getElementById('grafico-frequencia');
+            const margemEsq = 14, larguraUtil = 182;
+            let y = 20;
+
+            const curso = alunoPrincipal.Curso || 'Não informado';
+            const coordenador = alunoPrincipal['Coordenador do Curso'] || 'Não informado';
+
+            const desenharCabecalho = () => {
+                if (logoBase64) {
+                    doc.addImage(logoBase64, 'PNG', margemEsq, 15, 40, 12);
+                }
+
+                doc.setFillColor(34, 139, 34);
+                doc.rect(margemEsq, 30, larguraUtil, 15, 'F');
+
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(14);
+                doc.setTextColor(255, 255, 255);
+                doc.text("COORDENAÇÃO DE CURSO - IFFar", margemEsq + 5, 40);
+            };
+
+            desenharCabecalho();
+
+            y = 52;
+
+            doc.setTextColor(0, 0, 0);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(12);
+            doc.text("Relatório Consolidado de Frequência e Detalhamento", margemEsq, y);
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            doc.text(`Aluno: ${alunoPrincipal.Nome}`, margemEsq, y + 7);
+            doc.text(`Matrícula: ${alunoPrincipal.Matrícula}`, margemEsq, y + 12);
+            doc.text(`Curso: ${curso}`, margemEsq, y + 17);
+            doc.text(`Coordenador(a): ${coordenador}`, margemEsq, y + 22);
+
+            y += 30;
+
+            if (canvas) {
+                try {
+                    const imgData = canvas.toDataURL('image/png', 1.0);
+                    doc.setFont("helvetica", "bold");
+                    doc.text("Análise Comparativa de Disciplinas:", margemEsq, y);
+                    doc.addImage(imgData, 'PNG', margemEsq, y + 2, 182, 80);
+                    y += 95;
+                } catch (error) {
+                    console.error('Erro ao inserir gráfico:', error);
+                }
+            }
+
+            doc.setFillColor(230, 230, 230);
+            doc.rect(margemEsq, y, larguraUtil, 8, 'F');
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(9);
+            doc.setTextColor(0, 0, 0);
+            doc.text("DISCIPLINA / DETALHAMENTO POR MÊS", margemEsq + 2, y + 5);
+            doc.text("FALTAS", margemEsq + 140, y + 5);
+            doc.text("PRESENÇA", margemEsq + 160, y + 5);
+            y += 8;
+
+            registrosFiltradosAluno.forEach((item, idx) => {
+                let mesesComDados = ordemMeses.filter(m => item[`${m}_Total_Aulas`] > 0);
+                let alturaBloco = 15 + (mesesComDados.length * 5);
+
+                if (y + alturaBloco > 275) {
+                    doc.addPage();
+                    desenharCabecalho();
+                    y = 52;
+
+                    doc.setFillColor(230, 230, 230);
+                    doc.rect(margemEsq, y, larguraUtil, 8, 'F');
+                    doc.setFont("helvetica", "bold");
+                    doc.setFontSize(9);
+                    doc.setTextColor(0, 0, 0);
+                    doc.text("DISCIPLINA / DETALHAMENTO POR MÊS", margemEsq + 2, y + 5);
+                    doc.text("FALTAS", margemEsq + 140, y + 5);
+                    doc.text("PRESENÇA", margemEsq + 160, y + 5);
+                    y += 8;
+                }
+
+                if (idx % 2 === 0) {
+                    doc.setFillColor(249, 249, 249);
+                    doc.rect(margemEsq, y, larguraUtil, alturaBloco, 'F');
+                }
+
+                const discLimpa = (item.Disciplina || '').split('Créditos:')[0].trim();
+
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(8);
+                doc.setTextColor(30, 30, 30);
+                doc.text(discLimpa, margemEsq + 2, y + 5);
+
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(7);
+                doc.setTextColor(100, 100, 100);
+                doc.text(`Prof: ${item.Docente || 'Não informado'} | CH: ${item['Carga Horária'] || '-'}h`, margemEsq + 2, y + 9);
+
+                let yMes = y + 13;
+                mesesComDados.forEach(mes => {
+                    const aulas = item[`${mes}_Total_Aulas`] || 0;
+                    const faltas = item[`${mes}_Dias_Faltados`] || 0;
+                    const perc = item[`${mes}_%_Presença`] || 0;
+
+                    doc.setFontSize(7);
+                    doc.setTextColor(50, 50, 50);
+
+                    let textoMes = `${mes}: ${aulas} aulas dadas.`;
+                    if (faltas > 0) {
+                        textoMes += ` Faltas: ${faltas} (${perc}% pres.)`;
+                        if (perc < 75) doc.setTextColor(200, 0, 0);
+                    } else {
+                        textoMes += ` 100% de presença.`;
+                        doc.setTextColor(0, 100, 0);
+                    }
+
+                    doc.text(textoMes, margemEsq + 4, yMes);
+                    yMes += 4;
+                });
+
+                doc.setFontSize(9);
+                doc.setTextColor(0, 0, 0);
+                doc.setFont("helvetica", "bold");
+                doc.text(`${item['Total_Dias_Faltados_Geral'] || '0'}`, margemEsq + 140, y + 7);
+
+                const presenca = parseFloat(item['%_Presença_Geral'] || 0);
+                if (presenca < 75) doc.setTextColor(200, 0, 0);
+                else doc.setTextColor(0, 100, 0);
+
+                doc.text(`${presenca}%`, margemEsq + 160, y + 7);
+
+                y += alturaBloco;
+                doc.setDrawColor(230);
+                doc.line(margemEsq, y, margemEsq + larguraUtil, y);
+            });
+
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(150);
+                doc.text(
+                    `Página ${i} de ${pageCount} | Relatório Consolidado Institucional | Emitido em: ${new Date().toLocaleString('pt-BR')}`,
+                    margemEsq,
+                    285
+                );
+            }
+
+            doc.save(`Consolidado_${alunoPrincipal.Nome.replace(/\s+/g, '_')}.pdf`);
+        }
+
+        function classeCelulaFalta(valor) { return Number(valor || 0) > 0 ? 'celula-falta' : 'celula-neutra'; }
+        function classeCelulaPresenca(valor) {
+            const v = Number(valor || 0);
+            return v < 75 ? 'celula-presenca-baixa' : (v === 75 ? 'celula-presenca-75' : 'celula-neutra');
+        }
+
+        function renderizarTabela(data) {
+            atualizarCabecalhoTabela();
+            const corpo = document.getElementById('tabela-corpo');
+            corpo.innerHTML = '';
+            data.forEach((a, index) => {
+                const tr = document.createElement('tr');
+                const indiceOriginal = dadosTabela.indexOf(a);
+                tr.className = `${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition border-b`;
+                if (abaAtual === 'evasao') {
+                    const faltasMes = Number(a['Total Faltas (Mês)'] || 0);
+                    tr.innerHTML = `
+                        <td onclick="abrirModalConsolidadoAluno('${a.Matrícula}')" class="px-4 py-2 font-medium text-blue-700 cursor-pointer hover:underline whitespace-nowrap">${a.Nome || ''}</td>
+                        <td class="px-4 py-2 text-center text-gray-300 italic">-</td>
+                        <td class="px-4 py-2 text-black">${a.Matrícula || ''}</td>
+                        <td class="px-4 py-2 text-black">${montarHtmlDisciplinaComMetadados(a)}</td>
+                        <td class="px-4 py-2 text-center font-bold text-black ${classeCelulaFalta(faltasMes)}">${faltasMes}</td>
+                        <td class="px-4 py-2 text-xs text-black italic ${classeCelulaFalta(faltasMes)}">${a['Datas das Faltas'] || ''}</td>`;
+                } else {
+                    let colunasMesesHtml = '';
+                    ordemMeses.forEach(mes => {
+                        if (dadosTabela.some(item => Object.prototype.hasOwnProperty.call(item, `${mes}_Total_Aulas`))) {
+                            colunasMesesHtml += `
+                                <td class="px-4 py-2 text-center border-l border-gray-100">${a[`${mes}_Total_Aulas`] ?? ''}</td>
+                                <td class="px-4 py-2 text-center ${classeCelulaFalta(a[`${mes}_Dias_Faltados`])}">${a[`${mes}_Dias_Faltados`] ?? ''}</td>
+                                <td class="px-4 py-2 text-center ${classeCelulaPresenca(a[`${mes}_%_Presença`])}">${a[`${mes}_%_Presença`] ?? ''}</td>`;
+                        }
+                    });
+                    tr.innerHTML = `
+                        <td onclick="abrirModalConsolidadoAluno('${a.Matrícula}')" class="px-4 py-2 font-medium text-blue-700 cursor-pointer hover:underline whitespace-nowrap">${a.Nome || ''}</td>
+                        <td class="px-4 py-2 text-center">
+                            <button onclick="abrirModalFrequencia(${indiceOriginal})" class="px-3 py-1 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm">Ver gráfico</button>
+                        </td>
+                        <td class="px-4 py-2 text-black whitespace-nowrap">${a.Matrícula || ''}</td>
+                        <td class="px-4 py-2 text-black">${montarHtmlDisciplinaComMetadados(a)}</td>
+                        ${colunasMesesHtml}
+                        <td class="px-4 py-2 text-center font-bold border-l border-gray-100 ${classeCelulaFalta(a['Total_Dias_Faltados_Geral'])}">${a['Total_Dias_Faltados_Geral'] ?? 0}</td>
+                        <td class="px-4 py-2 text-center font-bold ${classeCelulaPresenca(a['%_Presença_Geral'])}">${a['%_Presença_Geral'] ?? 0}</td>`;
+                }
+                corpo.appendChild(tr);
+            });
+        }
+
+        // Use esta versão atualizada da função:
+
+        function atualizarCardsResumo(data) {
+            document.getElementById('card-total-alunos').innerText = data.length;
+
+            const somaPresenca = data.reduce((acc, item) => acc + Number(item['%_Presença_Geral'] || 0), 0);
+            const frequenciaMedia = data.length ? (somaPresenca / data.length).toFixed(0) : 0;
+            const alertas = data.filter(item => Number(item['%_Presença_Geral'] || 0) < 75).length;
+
+            document.getElementById('card-frequencia-media').innerText = `${frequenciaMedia}%`;
+            document.getElementById('card-alertas').innerText = alertas;
+
+            const map = {};
+            data.forEach(a => {
+                const discLimpa = (a.Disciplina || '').split('Créditos:')[0].trim();
+
+                if (!map[discLimpa]) {
+                    map[discLimpa] = {
+                        total: 0,
+                        docente: a.Docente || '-',
+                        matriculaDocente: a['Matrícula Docente'] || '',
+                        curso: a.Curso || '-',
+                        coordenador: a['Coordenador do Curso'] || '-'
+                    };
+                }
+
+                map[discLimpa].total += 1;
+            });
+
+            document.getElementById('resumo-disciplinas-qtd').innerText = Object.keys(map).length;
+
+            document.getElementById('card-disciplinas').innerHTML = Object.entries(map)
+                .sort((a, b) => b[1].total - a[1].total)
+                .map(([d, info]) => `
+            <div onclick="filtrarPorDisciplina('${String(d).replace(/'/g, "\\'")}')" class="flex justify-between border p-3 rounded-lg cursor-pointer hover:bg-blue-50 mb-3 shadow-sm bg-white">
+                <div class="flex-1">
+                    <div class="font-bold text-gray-800 text-lg">${d}</div>
+                    <div class="text-[11px] text-blue-700 font-bold uppercase tracking-wider mb-1">${info.curso}</div>
+                    <div class="text-[10px] text-gray-500 font-medium">Coordenador(a): <span class="text-gray-700">${info.coordenador}</span></div>
+                    <div class="text-xs text-gray-600 mt-2 bg-gray-100 inline-block px-2 py-1 rounded">
+                        <span class="font-semibold">Docente:</span> ${info.matriculaDocente} ${info.docente}
+                    </div>
+                </div>
+                <div class="flex flex-col items-end justify-center ml-4">
+                    <span class="text-[10px] text-gray-400 uppercase font-bold">Alunos</span>
+                    <span class="font-bold text-blue-700 text-2xl">${info.total}</span>
+                </div>
+            </div>
+        `).join('');
+        }
+        function ordenarPorFaltasGeral() {
+            if (colunaOrdenacao === 'faltas_geral') {
+                ordemDesc = !ordemDesc;
+            } else {
+                colunaOrdenacao = 'faltas_geral';
+                ordemDesc = true;
+            }
+            paginaAtual = 1;
+            filtrarTabela();
+        }
+
+        function ordenarPorPercentualGeral() {
+            if (colunaOrdenacao === 'percentual_geral') {
+                ordemDesc = !ordemDesc;
+            } else {
+                colunaOrdenacao = 'percentual_geral';
+                ordemDesc = true;
+            }
+            paginaAtual = 1;
+            filtrarTabela();
+        }
+
+        function filtrarPorDisciplina(d) { document.getElementById('busca_geral').value = d; paginaAtual = 1; filtrarTabela(); }
+        function limparFiltro() { document.getElementById('busca_geral').value = ''; paginaAtual = 1; filtrarTabela(); }
+
+        trocarAba('frequencia');
+        document.getElementById('mes_analise').addEventListener('change', async function () {
+            if (abaAtual !== 'evasao') return;
+
+            const mesAtual = this.value;
+            document.getElementById('label-mes').innerText = mesAtual;
+
+            if (cacheEvasao.length > 0 && mesCacheEvasao === mesAtual) {
+                dadosTabela = [...cacheEvasao];
+                paginaAtual = 1;
+                filtrarTabela();
+                return;
+            }
+
+            const files = document.getElementById('arquivos').files;
+            if (files.length > 0) {
+                document.getElementById('loading').classList.remove('hidden');
+                await executarProcessamento();
+            }
+        });
+    </script>
+</body>
+
+</html>
