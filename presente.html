@@ -40,6 +40,11 @@
             transition: border-color 0.15s;
         }
 
+        #grafico-geral-alunos {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
         .toggle-grupo {
             display: inline-flex;
             background: #f1f5f9;
@@ -79,22 +84,191 @@
             border-color: #1d4ed8 !important;
             font-weight: 700;
         }
+
+        .faixa-slider-wrap {
+            position: relative;
+            width: 420px;
+            max-width: 100%;
+            height: 32px;
+        }
+
+        .faixa-slider {
+            position: absolute;
+            left: 0;
+            top: 10px;
+            width: 100%;
+            pointer-events: none;
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            height: 8px;
+            margin: 0;
+        }
+
+        .faixa-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 9999px;
+            background: #4f46e5;
+            border: 2px solid white;
+            box-shadow: 0 0 0 2px #4f46e5;
+            pointer-events: auto;
+            cursor: pointer;
+            margin-top: -5px;
+        }
+
+        .faixa-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 9999px;
+            background: #4f46e5;
+            border: 2px solid white;
+            box-shadow: 0 0 0 2px #4f46e5;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        .faixa-slider::-webkit-slider-runnable-track {
+            height: 8px;
+            border-radius: 999px;
+            background: transparent;
+        }
+
+        .faixa-slider::-moz-range-track {
+            height: 8px;
+            border-radius: 999px;
+            background: transparent;
+        }
+
+        .faixa-slider-base {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 13px;
+            height: 6px;
+            border-radius: 999px;
+            background: #d1d5db;
+        }
+
+        .faixa-slider-ativa {
+            position: absolute;
+            top: 13px;
+            height: 6px;
+            border-radius: 999px;
+            background: #6366f1;
+        }
+
+        .chip-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 9999px;
+            padding: 8px 14px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border: 1px solid transparent;
+        }
+
+        .chip-status.verde {
+            background: #eefaf2;
+            color: #86c79b;
+            border-color: #cfe9d8;
+        }
+
+        .chip-status.inativo {
+            opacity: 0.45;
+            filter: grayscale(0.15);
+            text-decoration: line-through;
+        }
+
+        .chip-status.vermelho {
+            background: #fff1f1;
+            color: #d73228;
+            border-color: #f3c6c6;
+        }
+
+        .chip-status.amarelo {
+            background: #fff8e8;
+            color: #b96a16;
+            border-color: #f0d38d;
+        }
+
+        .chip-bola {
+            width: 14px;
+            height: 14px;
+            border-radius: 999px;
+            display: inline-block;
+        }
+
+        .legenda-aluno-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            user-select: none;
+            transition: background .15s ease, opacity .15s ease;
+        }
+
+        .legenda-aluno-item:hover {
+            background: #f8fafc;
+        }
+
+        .legenda-aluno-item.inativo {
+            opacity: 1;
+        }
+
+        .legenda-aluno-item.inativo .legenda-aluno-texto {
+            color: #9ca3af;
+            text-decoration: line-through;
+        }
+
+        .legenda-aluno-item.inativo .chip-bola {
+            background: #9ca3af !important;
+        }
+
+        .legenda-aluno-texto {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 700;
+            color: #374151;
+            font-size: 0.85rem;
+        }
+
+        .legenda-painel {
+            border-left: 1px solid #e5e7eb;
+            background: #fafafa;
+            height: 620px;
+            overflow: hidden;
+        }
+
+        .btn-filtro-geral {
+            font-weight: 700;
+            transition: all .15s ease;
+        }
+
+        .btn-filtro-geral.ativo {
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.18);
+        }
     </style>
 </head>
 
 <body class="bg-gray-50 min-h-screen font-sans">
 
-    <!-- ── Conteúdo centralizado (cards, filtros, etc.) ── -->
     <div class="max-w-7xl mx-auto py-10 px-4">
         <header class="mb-10 text-center">
             <div class="flex justify-center mb-4">
                 <img src="iffar-horizontal.png" alt="Logo IFFar" class="h-20 object-contain">
             </div>
-            <h1 class="text-3xl font-bold text-blue-800">Presente.edu</h1>
+            <h1 class="text-3xl font-bold text-blue-800">Presença.edu</h1>
             <h2 class="text-2xl font-semibold text-gray-900 mt-1">Análise de frequências</h2>
         </header>
 
-        <!-- Upload -->
         <div class="bg-white p-6 rounded-xl shadow-md mb-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
                 <div>
@@ -111,7 +285,6 @@
             </div>
         </div>
 
-        <!-- Abas -->
         <div class="bg-white rounded-xl shadow-md mb-6">
             <div class="flex border-b">
                 <button id="tab-frequencia" onclick="trocarAba('frequencia')"
@@ -129,7 +302,6 @@
             </div>
         </div>
 
-        <!-- Seletor de mês (aba evasão) -->
         <div id="painel-mes" class="hidden bg-white p-6 rounded-xl shadow-md mb-8">
             <div class="max-w-sm">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Mês de Análise</label>
@@ -150,18 +322,13 @@
             </div>
         </div>
 
-        <!-- Loading -->
         <div id="loading" class="hidden text-center py-10">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
             <p class="mt-4 text-gray-600">Analisando documentos... isso pode levar alguns segundos.</p>
         </div>
 
-        <!-- ══════════════════════════════════════════
-             LINHA PRINCIPAL: cards à esquerda | disciplinas à direita
-        ══════════════════════════════════════════ -->
         <div class="flex flex-col lg:flex-row gap-6 mb-8">
 
-            <!-- COLUNA ESQUERDA: 3 cards quantitativos empilhados -->
             <div class="flex flex-col gap-4 lg:w-72 shrink-0">
                 <div class="bg-white rounded-xl shadow-md p-6 text-center">
                     <p id="titulo-card-total" class="text-sm text-gray-500 uppercase font-bold">Total de alunos</p>
@@ -177,7 +344,6 @@
                 </div>
             </div>
 
-            <!-- COLUNA DIREITA: card de disciplinas -->
             <div class="bg-white rounded-xl shadow-md p-6 flex-1 min-w-0">
                 <div class="flex justify-between mb-4">
                     <p class="text-sm text-gray-500 uppercase font-semibold">Disciplinas × total de alunos</p>
@@ -187,25 +353,25 @@
                             filtro</button>
                     </div>
                 </div>
-                <!-- overflow-y-auto com altura máxima para alinhar com os cards da esquerda -->
                 <div id="card-disciplinas" class="overflow-y-auto max-h-96"></div>
             </div>
 
         </div>
-        <!-- ── fim da linha principal ── -->
 
     </div>
-    <!-- ── fim do container centralizado ── -->
 
-    <!-- ══════════════════════════════════════════
-         TABELA — largura total da viewport
-    ══════════════════════════════════════════ -->
     <div class="w-full px-4 pb-10">
         <div class="bg-white rounded-xl shadow-md overflow-hidden">
             <div class="p-4 border-b flex justify-between items-center">
                 <h2 id="titulo-tabela" class="font-bold">Relatório de frequência</h2>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
                     <span id="label-mes" class="text-xs bg-blue-100 px-2 py-1 rounded">Todos os meses</span>
+
+                    <button id="btn-grafico-geral" onclick="abrirModalGraficoGeral()"
+                        class="px-3 py-1 text-xs rounded bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition">
+                        Gráfico geral
+                    </button>
+
                     <button onclick="gerarPdfTabelaAtual()"
                         class="px-3 py-1 text-xs rounded bg-red-600 text-white font-semibold hover:bg-red-700 transition">
                         PDF
@@ -246,7 +412,6 @@
         <div id="vazio" class="hidden text-center py-10 text-gray-500">Nenhum resultado encontrado</div>
     </div>
 
-    <!-- MODAL: Confirmação de períodos (disciplinas 72h) -->
     <div id="modal-periodos" class="hidden fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
             <div class="bg-blue-700 px-6 py-5">
@@ -291,7 +456,6 @@
         </div>
     </div>
 
-    <!-- MODAL: Gráfico de frequência temporal -->
     <div id="modal-frequencia" class="hidden fixed inset-0 z-50 bg-black/50 items-center justify-center p-4"
         onclick="fecharModalFrequencia(event)">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden"
@@ -324,6 +488,93 @@
         </div>
     </div>
 
+    <div id="modal-grafico-geral" class="hidden fixed inset-0 z-50 bg-black/50 items-center justify-center p-6"
+        onclick="fecharModalGraficoGeral(event)">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-[78vw] h-[78vh] overflow-hidden flex flex-col"
+            onclick="event.stopPropagation()">
+
+            <div class="px-6 py-5 border-b bg-gray-50">
+                <div class="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                        <h3 class="text-2xl font-extrabold text-gray-900">Frequência geral — todos os alunos</h3>
+                        <p class="text-gray-500 text-base mt-1">Uma linha por aluno · eixo X = meses · limiar crítico
+                            75%</p>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <select id="select-disciplina-grafico-geral" onchange="atualizarGraficoGeralCompleto()"
+                            class="border border-gray-300 rounded-xl px-3 py-2 text-base text-gray-600 bg-white">
+                        </select>
+                        <button onclick="fecharModalGraficoGeral()"
+                            class="text-gray-400 hover:text-gray-700 text-3xl leading-none">&times;</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-6 py-5 border-b">
+                <div class="flex flex-wrap items-center gap-3 text-sm font-semibold text-gray-700">
+                    <span>Mostrar alunos com presença geral entre</span>
+                    <span id="texto-faixa-min" class="text-indigo-600 text-2xl font-extrabold">0%</span>
+                    <span id="texto-faixa-max" class="text-indigo-600 text-2xl font-extrabold">100%</span>
+
+                    <div class="faixa-slider-wrap mx-2">
+                        <div class="faixa-slider-base"></div>
+                        <div id="faixa-slider-ativa" class="faixa-slider-ativa"></div>
+                        <input id="slider-min-geral" type="range" min="0" max="100" step="1" value="0"
+                            class="faixa-slider" oninput="sincronizarSlidersGerais('min')">
+                        <input id="slider-max-geral" type="range" min="0" max="100" step="1" value="100"
+                            class="faixa-slider" oninput="sincronizarSlidersGerais('max')">
+                    </div>
+
+                    <span id="contador-alunos-grafico-geral" class="text-gray-400 text-sm font-semibold">0 alunos
+                        exibidos</span>
+
+                    <button onclick="mostrarTodosGraficoGeral()" class="text-indigo-500 font-bold hover:underline">
+                        Mostrar todos
+                    </button>
+                </div>
+
+                <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                    <button id="btn-filtro-acima" onclick="aplicarFiltroRapidoGrafico('acima')"
+                        class="btn-filtro-geral chip-status verde">
+                        <span class="chip-bola bg-green-400"></span>Acima de 75% (média geral)
+                    </button>
+                    <button id="btn-filtro-abaixo" onclick="aplicarFiltroRapidoGrafico('abaixo')"
+                        class="btn-filtro-geral chip-status vermelho">
+                        <span class="chip-bola bg-red-500"></span>Abaixo de 75% (média geral)
+                    </button>
+                    <span class="chip-status amarelo">
+                        <span class="chip-bola bg-yellow-400"></span>Linha tracejada = limiar 75%
+                    </span>
+                    <span class="text-gray-400">· Clique na legenda abaixo para ocultar/exibir alunos
+                        individualmente</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 xl:grid-cols-[1fr_280px] flex-1 min-h-0">
+                <div class="p-4 h-full min-h-0">
+                    <div class="h-full min-h-0">
+                        <canvas id="grafico-geral-alunos"></canvas>
+                    </div>
+                </div>
+
+                <div class="legenda-painel flex flex-col h-full min-h-0">
+                    <div class="px-5 py-4 border-b bg-white flex items-center justify-between">
+                        <div class="text-2xl font-extrabold tracking-wide text-gray-700">ALUNOS</div>
+                        <div class="text-sm flex items-center gap-2">
+                            <button onclick="exibirTodosDatasetsGraficoGeral()"
+                                class="text-indigo-500 hover:underline">Exibir todos</button>
+                            <span class="text-gray-300">|</span>
+                            <button onclick="ocultarTodosDatasetsGraficoGeral()"
+                                class="text-red-500 hover:underline">Ocultar todos</button>
+                        </div>
+                    </div>
+                    <div id="lista-legenda-grafico-geral" class="flex-1 overflow-y-auto p-3 space-y-1 min-h-0"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <footer class="mt-10 bg-gray-100 border-t border-gray-200">
         <div class="max-w-[98vw] mx-auto px-4 py-6 text-center">
             <p class="text-sm text-gray-700 mb-4">
@@ -338,8 +589,7 @@
     </footer>
 
     <script>
-        const API_URL = "https://conta-faltas.vercel.app";
-        // const API_URL = "http://127.0.0.1:5001";
+        const API_URL = "http://127.0.0.1:5001";
 
         let dadosTabela = [];
         let cacheFrequencia = [];
@@ -368,9 +618,9 @@
             "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
         ];
 
-        // ══════════════════════════════════════════════════
-        // PAGINAÇÃO — implementação completa
-        // ══════════════════════════════════════════════════
+        let graficoGeralAlunos = null;
+        let datasetsGraficoGeralBase = [];
+        let filtroRapidoGeral = 'todos';
 
         function atualizarPaginacao(dados) {
             const container = document.getElementById('paginacao-container');
@@ -384,33 +634,28 @@
             container.classList.remove('hidden');
             totalPaginas = Math.ceil(total / itensPorPagina);
 
-            // Texto informativo: "Mostrando 1–35 de 120 registros"
             const inicio = (paginaAtual - 1) * itensPorPagina + 1;
             const fim = Math.min(paginaAtual * itensPorPagina, total);
             document.getElementById('paginacao-info').innerText =
                 `Mostrando ${inicio}–${fim} de ${total} registros`;
 
-            // Habilita / desabilita botões Primeira / Anterior / Próxima / Última
             document.getElementById('btn-primeira').disabled = paginaAtual === 1;
             document.getElementById('btn-anterior').disabled = paginaAtual === 1;
             document.getElementById('btn-proxima').disabled = paginaAtual === totalPaginas;
             document.getElementById('btn-ultima').disabled = paginaAtual === totalPaginas;
 
-            // Botões numerados — mostra até 7 páginas ao redor da atual
             const botoes = document.getElementById('paginacao-botoes');
             botoes.innerHTML = '';
 
-            const JANELA = 3; // páginas antes e depois da atual
+            const JANELA = 3;
             let inicio_p = Math.max(1, paginaAtual - JANELA);
             let fim_p = Math.min(totalPaginas, paginaAtual + JANELA);
 
-            // Reequilibra a janela nas bordas
             if (paginaAtual - JANELA < 1)
                 fim_p = Math.min(totalPaginas, fim_p + (JANELA - paginaAtual + 1));
             if (paginaAtual + JANELA > totalPaginas)
                 inicio_p = Math.max(1, inicio_p - (paginaAtual + JANELA - totalPaginas));
 
-            // Ellipsis inicial
             if (inicio_p > 1) {
                 botoes.appendChild(criarBtnPagina(1));
                 if (inicio_p > 2) botoes.appendChild(criarEllipsis());
@@ -420,7 +665,6 @@
                 botoes.appendChild(criarBtnPagina(p));
             }
 
-            // Ellipsis final
             if (fim_p < totalPaginas) {
                 if (fim_p < totalPaginas - 1) botoes.appendChild(criarEllipsis());
                 botoes.appendChild(criarBtnPagina(totalPaginas));
@@ -447,7 +691,6 @@
             if (pagina === paginaAtual) return;
             paginaAtual = pagina;
             filtrarTabela();
-            // Sobe para o topo da tabela
             document.getElementById('tabela-cabecalho').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
@@ -458,10 +701,6 @@
         function proximaPagina() {
             if (paginaAtual < totalPaginas) irParaPagina(paginaAtual + 1);
         }
-
-        // ══════════════════════════════════════════════════
-        // FLUXO PRINCIPAL — confirmação de períodos
-        // ══════════════════════════════════════════════════
 
         async function iniciarProcessamento() {
             const files = document.getElementById('arquivos').files;
@@ -569,10 +808,6 @@
             }
         }
 
-        // ══════════════════════════════════════════════════
-        // RESTANTE DO CÓDIGO — sem alterações
-        // ══════════════════════════════════════════════════
-
         const monthBandPlugin = {
             id: 'monthBandPlugin',
             beforeDatasetsDraw(chart) {
@@ -670,6 +905,12 @@
             if (event && event.target !== document.getElementById('modal-frequencia')) return;
             document.getElementById('modal-frequencia').classList.add('hidden');
             document.getElementById('modal-frequencia').classList.remove('flex');
+        }
+
+        function fecharModalGraficoGeral(event) {
+            if (event && event.target !== document.getElementById('modal-grafico-geral')) return;
+            document.getElementById('modal-grafico-geral').classList.add('hidden');
+            document.getElementById('modal-grafico-geral').classList.remove('flex');
         }
 
         function carregarImagemComoBase64(imgElement) {
@@ -805,6 +1046,7 @@
             const tituloTabela = document.getElementById('titulo-tabela');
             const tituloCard = document.getElementById('titulo-card-total');
             const files = document.getElementById('arquivos').files;
+            const btnGraficoGeral = document.getElementById('btn-grafico-geral');
 
             if (aba === 'frequencia') {
                 tabFreq.className = 'flex-1 px-4 py-3 font-semibold text-blue-700 border-b-2 border-blue-600 bg-blue-50 rounded-tl-xl';
@@ -817,6 +1059,7 @@
                 tituloCard.innerText = 'Total de alunos';
                 colunaOrdenacao = 'nome';
                 ordemDesc = false;
+                btnGraficoGeral.classList.remove('hidden');
 
                 if (cacheFrequencia.length > 0) {
                     dadosTabela = [...cacheFrequencia];
@@ -840,6 +1083,7 @@
                 tituloCard.innerText = 'Total de alunos faltantes';
                 colunaOrdenacao = 'faltas';
                 ordemDesc = true;
+                btnGraficoGeral.classList.add('hidden');
 
                 const mesAtual = document.getElementById('mes_analise').value;
 
@@ -874,7 +1118,6 @@
                 String(a['Docente'] || '').toLowerCase().includes(termo)
             );
 
-            // ORDENAÇÃO
             if (colunaOrdenacao === 'faltas_geral') {
                 dadosFiltradosAtuais.sort((a, b) => {
                     const va = Number(a['Total_Dias_Faltados_Geral'] || 0);
@@ -1145,8 +1388,6 @@
             });
         }
 
-        // Use esta versão atualizada da função:
-
         function atualizarCardsResumo(data) {
             document.getElementById('card-total-alunos').innerText = data.length;
 
@@ -1195,6 +1436,7 @@
             </div>
         `).join('');
         }
+
         function ordenarPorFaltasGeral() {
             if (colunaOrdenacao === 'faltas_geral') {
                 ordemDesc = !ordemDesc;
@@ -1220,7 +1462,434 @@
         function filtrarPorDisciplina(d) { document.getElementById('busca_geral').value = d; paginaAtual = 1; filtrarTabela(); }
         function limparFiltro() { document.getElementById('busca_geral').value = ''; paginaAtual = 1; filtrarTabela(); }
 
+        function preencherSelectDisciplinasGrafico() {
+            const select = document.getElementById('select-disciplina-grafico-geral');
+            const disciplinas = [...new Set(
+                (dadosTabela || [])
+                    .map(item => ((item.Disciplina || '').split('Créditos:')[0].trim()))
+                    .filter(Boolean)
+            )].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+            const valorAtual = select.value || 'TODAS';
+            select.innerHTML = `<option value="TODAS">Todas as disciplinas</option>` +
+                disciplinas.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
+
+            if ([...select.options].some(o => o.value === valorAtual)) {
+                select.value = valorAtual;
+            } else {
+                select.value = 'TODAS';
+            }
+        }
+
+        function escapeHtml(texto) {
+            return String(texto)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function abrirModalGraficoGeral() {
+            if (abaAtual !== 'frequencia') {
+                alert("O gráfico geral está disponível apenas na aba 'Frequência geral por mês'.");
+                return;
+            }
+
+            if (!dadosTabela || dadosTabela.length === 0) {
+                alert("Processe os arquivos primeiro para visualizar o gráfico geral.");
+                return;
+            }
+
+            preencherSelectDisciplinasGrafico();
+            document.getElementById('modal-grafico-geral').classList.remove('hidden');
+            document.getElementById('modal-grafico-geral').classList.add('flex');
+            filtroRapidoGeral = 'todos';
+            mostrarTodosGraficoGeral();
+            atualizarBotoesFiltroRapido();
+            atualizarGraficoGeralCompleto();
+        }
+
+        function sincronizarSlidersGerais(origem) {
+            const sliderMin = document.getElementById('slider-min-geral');
+            const sliderMax = document.getElementById('slider-max-geral');
+
+            let min = Number(sliderMin.value);
+            let max = Number(sliderMax.value);
+
+            if (origem === 'min' && min > max) {
+                sliderMax.value = min;
+                max = min;
+            }
+            if (origem === 'max' && max < min) {
+                sliderMin.value = max;
+                min = max;
+            }
+
+            document.getElementById('texto-faixa-min').innerText = `${min}%`;
+            document.getElementById('texto-faixa-max').innerText = `${max}%`;
+
+            atualizarFaixaVisualSlider();
+            filtroRapidoGeral = 'todos';
+            atualizarBotoesFiltroRapido();
+            atualizarGraficoGeralCompleto();
+        }
+
+        function atualizarFaixaVisualSlider() {
+            const min = Number(document.getElementById('slider-min-geral').value);
+            const max = Number(document.getElementById('slider-max-geral').value);
+            const faixa = document.getElementById('faixa-slider-ativa');
+            faixa.style.left = `${min}%`;
+            faixa.style.width = `${Math.max(0, max - min)}%`;
+        }
+
+        function mostrarTodosGraficoGeral() {
+            document.getElementById('slider-min-geral').value = 0;
+            document.getElementById('slider-max-geral').value = 100;
+            document.getElementById('texto-faixa-min').innerText = `0%`;
+            document.getElementById('texto-faixa-max').innerText = `100%`;
+
+            document.getElementById('btn-filtro-acima').classList.remove('inativo');
+            document.getElementById('btn-filtro-abaixo').classList.remove('inativo');
+
+            atualizarFaixaVisualSlider();
+            atualizarGraficoGeralCompleto();
+        }
+
+        function aplicarFiltroRapidoGrafico(tipo) {
+            const btnAcima = document.getElementById('btn-filtro-acima');
+            const btnAbaixo = document.getElementById('btn-filtro-abaixo');
+
+            const acimaAtivo = !btnAcima.classList.contains('inativo');
+            const abaixoAtivo = !btnAbaixo.classList.contains('inativo');
+
+            if (tipo === 'acima') {
+                if (acimaAtivo) {
+                    btnAcima.classList.add('inativo');
+                } else {
+                    btnAcima.classList.remove('inativo');
+                }
+            }
+
+            if (tipo === 'abaixo') {
+                if (abaixoAtivo) {
+                    btnAbaixo.classList.add('inativo');
+                } else {
+                    btnAbaixo.classList.remove('inativo');
+                }
+            }
+
+            atualizarGraficoGeralCompleto();
+        }
+
+        function atualizarBotoesFiltroRapido() {
+            const btnAcima = document.getElementById('btn-filtro-acima');
+            const btnAbaixo = document.getElementById('btn-filtro-abaixo');
+
+            btnAcima.classList.remove('ativo');
+            btnAbaixo.classList.remove('ativo');
+
+            if (filtroRapidoGeral === 'acima') btnAcima.classList.add('ativo');
+            if (filtroRapidoGeral === 'abaixo') btnAbaixo.classList.add('ativo');
+        }
+
+        function obterDadosGraficoGeralAgrupados() {
+            const disciplinaSelecionada = document.getElementById('select-disciplina-grafico-geral').value;
+            const mapa = new Map();
+
+            (dadosTabela || []).forEach(item => {
+                const disciplina = ((item.Disciplina || '').split('Créditos:')[0].trim());
+                if (disciplinaSelecionada !== 'TODAS' && disciplina !== disciplinaSelecionada) return;
+
+                const matricula = String(item.Matrícula || '').trim();
+                const nome = String(item.Nome || '').trim();
+                if (!matricula || !nome) return;
+
+                if (!mapa.has(matricula)) {
+                    mapa.set(matricula, {
+                        matricula,
+                        nome,
+                        porMes: {},
+                        somaMediaGeral: 0,
+                        qtdMediaGeral: 0
+                    });
+                }
+
+                const ref = mapa.get(matricula);
+
+                ordemMeses.forEach(mes => {
+                    const valor = normalizarNumero(item[`${mes}_%_Presença`]);
+                    if (valor !== null) {
+                        if (!ref.porMes[mes]) ref.porMes[mes] = [];
+                        ref.porMes[mes].push(valor);
+                    }
+                });
+
+                const geral = normalizarNumero(item['%_Presença_Geral']);
+                if (geral !== null) {
+                    ref.somaMediaGeral += geral;
+                    ref.qtdMediaGeral += 1;
+                }
+            });
+
+            return Array.from(mapa.values()).map(aluno => {
+                const serie = ordemMeses.map(mes => {
+                    const arr = aluno.porMes[mes] || [];
+                    if (!arr.length) return null;
+                    return Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2));
+                });
+
+                const mediaGeral = aluno.qtdMediaGeral
+                    ? Number((aluno.somaMediaGeral / aluno.qtdMediaGeral).toFixed(2))
+                    : 0;
+
+                return {
+                    matricula: aluno.matricula,
+                    nome: aluno.nome,
+                    serie,
+                    mediaGeral,
+                    cor: mediaGeral >= LIMIAR_PRESENCA ? '#22c55e' : '#ef4444'
+                };
+            }).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+        }
+
+        function atualizarGraficoGeralCompleto() {
+            const min = Number(document.getElementById('slider-min-geral').value);
+            const max = Number(document.getElementById('slider-max-geral').value);
+
+            const acimaAtivo = !document.getElementById('btn-filtro-acima').classList.contains('inativo');
+            const abaixoAtivo = !document.getElementById('btn-filtro-abaixo').classList.contains('inativo');
+
+            let alunos = obterDadosGraficoGeralAgrupados().filter(a =>
+                a.mediaGeral >= min && a.mediaGeral <= max
+            );
+
+            alunos = alunos.filter(aluno => {
+                if (aluno.mediaGeral >= LIMIAR_PRESENCA && acimaAtivo) return true;
+                if (aluno.mediaGeral < LIMIAR_PRESENCA && abaixoAtivo) return true;
+                return false;
+            });
+
+            const datasets = alunos.map(aluno => ({
+                label: aluno.nome,
+                data: aluno.serie,
+                borderColor: aluno.cor,
+                backgroundColor: aluno.cor,
+                pointBackgroundColor: aluno.cor,
+                pointBorderColor: aluno.cor,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                borderWidth: 3,
+                fill: false,
+                tension: 0.35,
+                spanGaps: false,
+                _mediaGeral: aluno.mediaGeral,
+                _corBase: aluno.cor
+            }));
+
+            document.getElementById('contador-alunos-grafico-geral').innerText =
+                `${datasets.length} alunos exibidos`;
+
+            const ctx = document.getElementById('grafico-geral-alunos').getContext('2d');
+            if (graficoGeralAlunos) graficoGeralAlunos.destroy();
+
+            graficoGeralAlunos = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ordemMeses,
+                    datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: {
+                            top: 10,
+                            right: 20,
+                            bottom: 0,
+                            left: 10
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function (context) {
+                                    return context[0]?.label || '';
+                                },
+                                label: function (context) {
+                                    const nome = context.dataset.label || '';
+                                    const valor = context.parsed.y;
+                                    if (valor === null || valor === undefined) return `${nome} — sem dado`;
+                                    return `${nome}: ${valor}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: '% de Presença',
+                                color: '#4b5563',
+                                font: {
+                                    size: 12,
+                                    weight: '600'
+                                }
+                            },
+                            ticks: {
+                                callback: v => v + '%',
+                                font: {
+                                    size: 10
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(156, 163, 175, 0.30)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Meses do Semestre',
+                                color: '#4b5563',
+                                font: {
+                                    size: 12,
+                                    weight: '600'
+                                }
+                            },
+                            ticks: {
+                                font: {
+                                    size: 10
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(156, 163, 175, 0.30)'
+                            }
+                        }
+                    }
+                },
+                plugins: [{
+                    id: 'pluginGraficoGeralLimiar',
+                    beforeDraw(chart) {
+                        const { ctx, chartArea, scales } = chart;
+                        if (!chartArea || !scales.y) return;
+
+                        const yThreshold = scales.y.getPixelForValue(LIMIAR_PRESENCA);
+
+                        ctx.save();
+
+                        ctx.fillStyle = 'rgba(34, 197, 94, 0.08)';
+                        ctx.fillRect(chartArea.left, chartArea.top, chartArea.right - chartArea.left, yThreshold - chartArea.top);
+
+                        ctx.fillStyle = 'rgba(239, 68, 68, 0.08)';
+                        ctx.fillRect(chartArea.left, yThreshold, chartArea.right - chartArea.left, chartArea.bottom - yThreshold);
+
+                        ctx.strokeStyle = '#f59e0b';
+                        ctx.lineWidth = 3;
+                        ctx.setLineDash([10, 8]);
+                        ctx.beginPath();
+                        ctx.moveTo(chartArea.left, yThreshold);
+                        ctx.lineTo(chartArea.right, yThreshold);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+
+                        ctx.fillStyle = '#b45309';
+                        ctx.font = 'bold 12px sans-serif';
+                        ctx.fillText(`LIMIAR CRÍTICO ${LIMIAR_PRESENCA}%`, chartArea.left + 8, yThreshold - 8);
+                        ctx.restore();
+                    }
+                }]
+            });
+
+            renderizarLegendaGraficoGeral();
+        }
+        function renderizarLegendaGraficoGeral() {
+            const wrap = document.getElementById('lista-legenda-grafico-geral');
+            wrap.innerHTML = '';
+
+            if (!graficoGeralAlunos) return;
+
+            graficoGeralAlunos.data.datasets.forEach((dataset, index) => {
+                const meta = graficoGeralAlunos.getDatasetMeta(index);
+                const oculto = meta.hidden === true;
+
+                const item = document.createElement('div');
+                item.className = `legenda-aluno-item ${oculto ? 'inativo' : ''}`;
+
+                item.onclick = () => {
+                    alternarDatasetGraficoGeral(index);
+
+                    const canvas = document.getElementById('grafico-geral-alunos');
+                    if (canvas) {
+                        canvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                };
+
+                const cor = oculto
+                    ? '#9ca3af'
+                    : (dataset._corBase || dataset.borderColor || '#9ca3af');
+
+                item.innerHTML = `
+            <span class="chip-bola" style="background:${cor}"></span>
+            <span class="legenda-aluno-texto">${escapeHtml(dataset.label)}</span>
+        `;
+
+                wrap.appendChild(item);
+            });
+        }
+
+        function alternarDatasetGraficoGeral(index) {
+            if (!graficoGeralAlunos) return;
+
+            const meta = graficoGeralAlunos.getDatasetMeta(index);
+            meta.hidden = meta.hidden === true ? false : true;
+
+            graficoGeralAlunos.update();
+            renderizarLegendaGraficoGeral();
+        }
+
+        function exibirTodosDatasetsGraficoGeral() {
+            document.getElementById('btn-filtro-acima').classList.remove('inativo');
+            document.getElementById('btn-filtro-abaixo').classList.remove('inativo');
+
+            document.getElementById('slider-min-geral').value = 0;
+            document.getElementById('slider-max-geral').value = 100;
+            document.getElementById('texto-faixa-min').innerText = `0%`;
+            document.getElementById('texto-faixa-max').innerText = `100%`;
+
+            atualizarFaixaVisualSlider();
+            atualizarGraficoGeralCompleto();
+        }
+
+        function ocultarTodosDatasetsGraficoGeral() {
+            document.getElementById('btn-filtro-acima').classList.add('inativo');
+            document.getElementById('btn-filtro-abaixo').classList.add('inativo');
+
+            if (graficoGeralAlunos) {
+                graficoGeralAlunos.data.datasets.forEach((_, index) => {
+                    const meta = graficoGeralAlunos.getDatasetMeta(index);
+                    meta.hidden = true;
+                });
+
+                graficoGeralAlunos.update();
+                renderizarLegendaGraficoGeral();
+            }
+
+            atualizarGraficoGeralCompleto();
+        }
+
         trocarAba('frequencia');
+        atualizarFaixaVisualSlider();
+        atualizarBotoesFiltroRapido();
+
         document.getElementById('mes_analise').addEventListener('change', async function () {
             if (abaAtual !== 'evasao') return;
 
