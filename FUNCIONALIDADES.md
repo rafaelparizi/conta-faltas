@@ -27,6 +27,8 @@ navegador.
 
 - Apresentação do produto com seções de funcionalidades, recursos, "como
   funciona", vídeo de demonstração (YouTube incorporado) e "sobre o projeto".
+- Seção "Sobre o Projeto" com o autor (docente do IFFar desde 2012), formação
+  acadêmica, propósito do projeto e links (LinkedIn, Lattes, contato).
 - Banner de aviso de fase de testes e badge "versão beta".
 - Slider automático de mockups do dashboard.
 - Botão de acesso direto à ferramenta (`presente.html`) e link para formulário
