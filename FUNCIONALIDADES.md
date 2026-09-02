@@ -13,6 +13,7 @@ frequência e alertas de evasão.
 | Camada | Tecnologia | Arquivo |
 |---|---|---|
 | Landing page | HTML + Tailwind (CDN) | `index.html` |
+| Autenticação | HTML + Tailwind (CDN) | `auth.html` |
 | Aplicação (SPA) | HTML + Tailwind + Chart.js + jsPDF | `presente.html` |
 | API de extração | Python / Flask + pdfplumber + pandas | `api/app.py` |
 | Deploy da API | Vercel (`https://conta-faltas.vercel.app`) | — |
@@ -20,6 +21,26 @@ frequência e alertas de evasão.
 O front-end consome a API via `fetch`. O processamento pesado dos PDFs acontece
 no servidor; a renderização, filtros e geração de relatórios acontecem no
 navegador.
+
+---
+
+## 0. Autenticação (`auth.html`)
+
+> **Versão beta:** ainda **sem OAuth real**. O botão apenas registra o acesso
+> localmente e encaminha para a ferramenta. A integração com o Google Identity
+> Services (e a restrição ao domínio `@iffar.edu.br`) fica para uma próxima versão.
+
+- Página de login com identidade visual da landing (logo, verde IFFar, fonte Inter).
+- Único controle: botão **"Entrar com Google"** (ícone oficial em SVG).
+- Fluxo: `index.html` (landing) → `auth.html` (login) → `presente.html` (ferramenta).
+- Ao clicar no botão, grava `presente_auth = '1'` e `presente_auth_ts` no
+  `localStorage` e redireciona para `presente.html`.
+- Se o usuário já tiver a flag, `auth.html` pula direto para `presente.html`.
+- `presente.html` é protegido: sem a flag `presente_auth`, redireciona de volta
+  para `auth.html`.
+- Botão **"Sair"** no topo do `presente.html`: limpa a flag do `localStorage` e
+  volta para `auth.html`.
+- Ainda não há tela de perfil nem proteção da API Flask (segue aberta).
 
 ---
 
@@ -31,8 +52,8 @@ navegador.
   acadêmica, propósito do projeto e links (LinkedIn, Lattes, contato).
 - Banner de aviso de fase de testes e badge "versão beta".
 - Slider automático de mockups do dashboard.
-- Botão de acesso direto à ferramenta (`presente.html`) e link para formulário
-  de feedback.
+- Botão de acesso à ferramenta, que agora passa pela página de login
+  (`auth.html` → `presente.html`), e link para formulário de feedback.
 - Identidade visual institucional (verde IFFar `#32a041`).
 
 ---
@@ -79,13 +100,32 @@ navegador.
 
 ## 3. Aplicação de análise (`presente.html`)
 
+### Layout
+- Interface em painel: **barra lateral fixa à esquerda** (marca, navegação entre
+  as análises, seletor de mês, upload dos PDFs, **indicador de carregamento**,
+  botão "Sair" e crédito) e **área de conteúdo à direita** com título dinâmico,
+  ação de PDF, cartões de indicadores, resumo por disciplina e o conteúdo em abas.
+- A **animação de carregamento** aparece na barra lateral, logo abaixo do botão
+  "Processar relatório".
+- O **resumo "Disciplinas × alunos"** fica acima da tabela (antes do conteúdo em
+  abas), em **cards compactos** dispostos em grade de até 4 por linha, com filtro
+  rápido por disciplina.
+- **Duas abas de conteúdo** (a de gráfico é a **ativa por padrão**):
+  1. **Gráfico da turma** — o gráfico geral (uma linha por aluno) embutido na
+     página, com seus filtros e legenda; desabilitada na análise "Busca por mês".
+  2. **Planilha de alunos** — a tabela detalhada por aluno/mês com busca e
+     paginação.
+- Responsivo: em telas estreitas a barra lateral vira um bloco no topo.
+
 ### Fluxo de uso
-1. Upload múltiplo de PDFs (`.pdf`) do diário SIGAA.
+1. Upload múltiplo de PDFs (`.pdf`) do diário SIGAA pela barra lateral.
 2. Se houver disciplina de 72h, abre **modal de confirmação de períodos**
    (2 ou 4 por aula) por código de disciplina.
-3. Processa e exibe os resultados em duas abas.
+3. Processa e exibe os resultados; a navegação da barra lateral alterna entre as
+   duas análises ("Frequência geral" e "Busca por mês") e as abas de conteúdo
+   alternam entre gráfico e planilha.
 
-### Aba "Frequência"
+### "Frequência geral"
 - Tabela com presença por mês (Fevereiro → Janeiro) e percentual geral por aluno.
 - Células coloridas conforme o **limiar crítico de 75%** (verde acima /
   vermelho abaixo).
@@ -94,8 +134,8 @@ navegador.
 - Paginação (35 itens por página) com navegação e atalhos para primeira/última
   página.
 
-### Aba "Evasão"
-- Seleção do mês a analisar.
+### "Busca por mês"
+- Seleção do mês a analisar (na barra lateral).
 - Lista de alunos em situação crítica (faltas consecutivas), com as datas das
   faltas e a disciplina.
 
@@ -103,13 +143,16 @@ navegador.
 - Total de alunos.
 - Frequência média.
 - Número de alertas de evasão.
-- Card lateral com resumo por disciplina (quantidade e filtro rápido).
+- Card com resumo por disciplina (quantidade e filtro rápido), acima da tabela.
 
 ### Gráficos (Chart.js)
 - **Gráfico individual do aluno**: série temporal de % de presença por mês, com
   faixas de fundo coloridas por faixa de risco e linha do limiar de 75%
   (plugin `monthBandPlugin` customizado).
-- **Gráfico geral**: uma linha por aluno, eixo X = meses.
+- **Gráfico da turma** (aba de conteúdo, não é mais modal): uma linha por aluno,
+  eixo X = **apenas os meses presentes nos diários processados** (detectados no
+  próprio front-end pelas colunas `<mês>_Total_Aulas` / `<mês>_%_Presença`; não
+  exige mudança na API).
   - Filtro por disciplina.
   - Filtro por faixa de percentual com **slider duplo** (mín/máx).
   - Filtros rápidos "acima de 75%" / "abaixo de 75%".

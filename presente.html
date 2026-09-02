@@ -241,10 +241,17 @@
         }
 
         .legenda-painel {
-            border-left: 1px solid #e5e7eb;
             background: #fafafa;
-            height: 620px;
-            overflow: hidden;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        @media (min-width: 1280px) {
+            .legenda-painel {
+                border-top: none;
+                border-left: 1px solid #e5e7eb;
+                height: 560px;
+                overflow: hidden;
+            }
         }
 
         .btn-filtro-geral {
@@ -255,161 +262,348 @@
         .btn-filtro-geral.ativo {
             box-shadow: 0 2px 8px rgba(79, 70, 229, 0.18);
         }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 9px 10px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #475569;
+            transition: background .15s, color .15s;
+            margin-bottom: 2px;
+        }
+
+        .nav-item:hover {
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+
+        .nav-item svg {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+
+        .nav-item.nav-ativo {
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .kpi-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .ctab {
+            padding: 8px 16px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #64748b;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            transition: color .15s, border-color .15s;
+        }
+
+        .ctab:hover:not(:disabled) {
+            color: #1e293b;
+        }
+
+        .ctab.ctab-ativo {
+            color: #1d4ed8;
+            border-color: #1d4ed8;
+        }
+
+        .ctab:disabled {
+            opacity: .4;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 
-<body class="bg-gray-50 min-h-screen font-sans">
+<body class="bg-slate-100 min-h-screen font-sans text-slate-800">
 
-    <div class="max-w-7xl mx-auto py-10 px-4">
-        <header class="mb-10 text-center">
-            <div class="flex justify-center mb-4">
-                <img src="iffar-horizontal.png" alt="Logo IFFar" class="h-20 object-contain">
-            </div>
-            <h1 class="text-3xl font-bold text-blue-800">Presença.edu</h1>
-            <h2 class="text-2xl font-semibold text-gray-900 mt-1">Análise de frequências</h2>
-        </header>
+    <div class="lg:flex min-h-screen">
 
-        <div class="bg-white p-6 rounded-xl shadow-md mb-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Selecione um ou mais arquivos PDF contendo os diários de classes (parciais ou finais).
-                    </label>
-                    <input type="file" id="arquivos" multiple accept=".pdf"
-                        class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:bg-blue-50 file:text-blue-700">
+        <!-- ===== BARRA LATERAL ===== -->
+        <aside
+            class="lg:w-72 lg:shrink-0 bg-white border-b lg:border-b-0 lg:border-r border-slate-200 lg:sticky lg:top-0 lg:h-screen flex flex-col">
+            <div class="px-6 py-5 border-b border-slate-200 flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-blue-700 flex items-center justify-center shrink-0">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 19V13m4 6V5m4 14v-8M4 19h16" />
+                    </svg>
                 </div>
-                <button onclick="iniciarProcessamento()" id="btn-processar"
-                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg">
-                    Processar Relatório
-                </button>
+                <div class="leading-tight">
+                    <p class="font-bold text-slate-900">Presença.edu</p>
+                    <p class="text-xs text-slate-500">Análise de frequências</p>
+                </div>
             </div>
-        </div>
 
-        <div class="bg-white rounded-xl shadow-md mb-6">
-            <div class="flex border-b">
-                <button id="tab-frequencia" onclick="trocarAba('frequencia')"
-                    class="flex-1 px-4 py-3 font-semibold text-blue-700 border-b-2 border-blue-600 bg-blue-50 rounded-tl-xl">
-                    Frequência geral por mês
+            <nav class="p-4 flex-1 overflow-y-auto">
+                <p class="px-2 text-[0.7rem] font-bold uppercase tracking-wider text-slate-400 mb-2">Análise</p>
+
+                <button id="tab-frequencia" onclick="trocarAba('frequencia')" class="nav-item">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 14l4-4 3 3 5-6" />
+                    </svg>
+                    Frequência geral
                 </button>
-                <button id="tab-evasao" onclick="trocarAba('evasao')"
-                    class="flex-1 px-4 py-3 font-semibold text-gray-600 hover:bg-gray-50 rounded-tr-xl">
+                <button id="tab-evasao" onclick="trocarAba('evasao')" class="nav-item">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M8 7V3m8 4V3M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1zM4 11h16" />
+                    </svg>
                     Busca por mês
                 </button>
-            </div>
-            <div class="p-4 text-sm text-gray-600">
-                <span id="descricao-aba">Visualize a frequência dos alunos em todos os meses disponíveis no
-                    diário.</span>
-            </div>
-        </div>
 
-        <div id="painel-mes" class="hidden bg-white p-6 rounded-xl shadow-md mb-8">
-            <div class="max-w-sm">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Mês de Análise</label>
-                <select id="mes_analise" class="w-full border-gray-300 rounded-lg shadow-sm p-2 border text-black">
-                    <option value="Janeiro">Janeiro</option>
-                    <option value="Fevereiro">Fevereiro</option>
-                    <option value="Março" selected>Março</option>
-                    <option value="Abril">Abril</option>
-                    <option value="Maio">Maio</option>
-                    <option value="Junho">Junho</option>
-                    <option value="Julho">Julho</option>
-                    <option value="Agosto">Agosto</option>
-                    <option value="Setembro">Setembro</option>
-                    <option value="Outubro">Outubro</option>
-                    <option value="Novembro">Novembro</option>
-                    <option value="Dezembro">Dezembro</option>
-                </select>
-            </div>
-        </div>
-
-        <div id="loading" class="hidden text-center py-10">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p class="mt-4 text-gray-600">Analisando documentos... isso pode levar alguns segundos.</p>
-        </div>
-
-        <div class="flex flex-col lg:flex-row gap-6 mb-8">
-
-            <div class="flex flex-col gap-4 lg:w-72 shrink-0">
-                <div class="bg-white rounded-xl shadow-md p-6 text-center">
-                    <p id="titulo-card-total" class="text-sm text-gray-500 uppercase font-bold">Total de alunos</p>
-                    <p id="card-total-alunos" class="mt-4 text-5xl font-extrabold text-blue-700">0</p>
+                <div id="painel-mes" class="hidden mt-3 px-2">
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Mês de análise</label>
+                    <select id="mes_analise"
+                        class="w-full border border-slate-300 rounded-lg p-2 text-sm text-slate-800 bg-white">
+                        <option value="Janeiro">Janeiro</option>
+                        <option value="Fevereiro">Fevereiro</option>
+                        <option value="Março" selected>Março</option>
+                        <option value="Abril">Abril</option>
+                        <option value="Maio">Maio</option>
+                        <option value="Junho">Junho</option>
+                        <option value="Julho">Julho</option>
+                        <option value="Agosto">Agosto</option>
+                        <option value="Setembro">Setembro</option>
+                        <option value="Outubro">Outubro</option>
+                        <option value="Novembro">Novembro</option>
+                        <option value="Dezembro">Dezembro</option>
+                    </select>
                 </div>
-                <div class="bg-white rounded-xl shadow-md p-6 text-center">
-                    <p class="text-sm text-gray-500 uppercase font-bold">Frequência média</p>
-                    <p id="card-frequencia-media" class="mt-4 text-5xl font-extrabold text-green-600">0%</p>
-                </div>
-                <div class="bg-white rounded-xl shadow-md p-6 text-center border-l-4 border-red-500">
-                    <p class="text-sm text-gray-500 uppercase font-bold">Alertas de evasão</p>
-                    <p id="card-alertas" class="mt-4 text-5xl font-extrabold text-red-500">0</p>
-                </div>
-            </div>
 
-            <div class="bg-white rounded-xl shadow-md p-6 flex-1 min-w-0">
-                <div class="flex justify-between mb-4">
-                    <p class="text-sm text-gray-500 uppercase font-semibold">Disciplinas × total de alunos</p>
-                    <div class="flex items-center gap-3">
-                        <span id="resumo-disciplinas-qtd" class="text-xs text-gray-400">0</span>
-                        <button onclick="limparFiltro()" class="text-xs text-blue-600 hover:underline">Limpar
-                            filtro</button>
-                    </div>
-                </div>
-                <div id="card-disciplinas" class="overflow-y-auto max-h-96"></div>
-            </div>
-
-        </div>
-
-    </div>
-
-    <div class="w-full px-4 pb-10">
-        <div class="bg-white rounded-xl shadow-md overflow-hidden">
-            <div class="p-4 border-b flex justify-between items-center">
-                <h2 id="titulo-tabela" class="font-bold">Relatório de frequência</h2>
-                <div class="flex items-center gap-2 flex-wrap">
-                    <span id="label-mes" class="text-xs bg-blue-100 px-2 py-1 rounded">Todos os meses</span>
-
-                    <button id="btn-grafico-geral" onclick="abrirModalGraficoGeral()"
-                        class="px-3 py-1 text-xs rounded bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition">
-                        Gráfico geral
+                <p class="px-2 text-[0.7rem] font-bold uppercase tracking-wider text-slate-400 mt-6 mb-2">Fonte de dados
+                </p>
+                <div class="px-2">
+                    <label for="arquivos"
+                        class="block border-2 border-dashed border-slate-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
+                        <svg class="w-6 h-6 mx-auto text-slate-400 mb-1" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M7 16a4 4 0 01-.88-7.9A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 13l3-3 3 3M12 10v11" />
+                        </svg>
+                        <span class="text-xs font-semibold text-slate-600 block">Selecionar diários PDF</span>
+                        <span class="text-[0.7rem] text-slate-400">Diários de classe do SIGAA</span>
+                    </label>
+                    <input type="file" id="arquivos" multiple accept=".pdf" class="hidden">
+                    <p id="arquivos-info" class="text-[0.7rem] text-slate-500 mt-2 px-1 break-words"></p>
+                    <button onclick="iniciarProcessamento()" id="btn-processar"
+                        class="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm py-2.5 rounded-lg transition">
+                        Processar relatório
                     </button>
 
+                    <div id="loading" class="hidden mt-3 flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2">
+                        <span class="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-b-transparent shrink-0"></span>
+                        <p class="text-[0.7rem] font-medium text-blue-800 leading-tight">Analisando documentos… isso pode levar alguns segundos.</p>
+                    </div>
+                </div>
+            </nav>
+
+            <div class="px-6 py-4 border-t border-slate-200">
+                <button onclick="sair()" id="btn-sair"
+                    class="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-red-600 transition w-full">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Sair
+                </button>
+                <p class="text-[0.7rem] text-slate-400 mt-3">
+                    Desenvolvido por
+                    <a href="mailto:rafael.parizi@iffar.edu.br" class="text-blue-700 hover:underline">Rafael Parizi</a>
+                </p>
+            </div>
+        </aside>
+
+        <!-- ===== CONTEÚDO ===== -->
+        <main class="flex-1 min-w-0 p-6 lg:p-8">
+
+            <header class="mb-6 flex items-start justify-between gap-4 flex-wrap">
+                <div class="min-w-0">
+                    <h1 id="titulo-tabela" class="text-2xl font-bold text-slate-900">Relatório de frequência por mês</h1>
+                    <p id="descricao-aba" class="text-sm text-slate-500 mt-1">Visualize a frequência dos alunos em todos
+                        os meses disponíveis no diário.</p>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap shrink-0">
+                    <span id="label-mes"
+                        class="text-xs font-semibold bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full">Todos os
+                        meses</span>
                     <button onclick="gerarPdfTabelaAtual()"
-                        class="px-3 py-1 text-xs rounded bg-red-600 text-white font-semibold hover:bg-red-700 transition">
+                        class="px-3 py-1.5 text-xs rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition">
                         PDF
                     </button>
+                    <img src="iffar-horizontal.png" alt="Logo IFFar" class="hidden sm:block h-9 object-contain ml-1">
+                </div>
+            </header>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div class="kpi-card">
+                    <p id="titulo-card-total" class="text-xs text-slate-500 uppercase font-bold tracking-wide">Total de
+                        alunos</p>
+                    <p id="card-total-alunos" class="mt-2 text-4xl font-extrabold text-blue-700">0</p>
+                </div>
+                <div class="kpi-card">
+                    <p class="text-xs text-slate-500 uppercase font-bold tracking-wide">Frequência média</p>
+                    <p id="card-frequencia-media" class="mt-2 text-4xl font-extrabold text-green-600">0%</p>
+                </div>
+                <div class="kpi-card border-l-4 border-l-red-500">
+                    <p class="text-xs text-slate-500 uppercase font-bold tracking-wide">Alertas de evasão</p>
+                    <p id="card-alertas" class="mt-2 text-4xl font-extrabold text-red-500">0</p>
                 </div>
             </div>
 
-            <div class="p-4">
-                <input id="busca_geral" oninput="filtrarTabela()" placeholder="Buscar..."
-                    class="w-full border p-2 rounded">
+            <!-- Resumo por disciplina (antes da tabela) -->
+            <div class="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+                <div class="flex justify-between items-center mb-3">
+                    <p class="text-xs text-slate-500 uppercase font-bold tracking-wide">Disciplinas × alunos</p>
+                    <div class="flex items-center gap-2">
+                        <span id="resumo-disciplinas-qtd" class="text-xs text-gray-400">0</span>
+                        <button onclick="limparFiltro()" class="text-xs text-blue-600 hover:underline">Limpar</button>
+                    </div>
+                </div>
+                <div id="card-disciplinas"
+                    class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 overflow-y-auto max-h-80">
+                </div>
             </div>
 
-            <div class="overflow-x-auto w-full">
-                <table class="w-full text-sm border-collapse">
-                    <thead id="tabela-cabecalho"></thead>
-                    <tbody id="tabela-corpo"></tbody>
-                </table>
+            <!-- Abas de conteúdo -->
+            <div class="border-b border-slate-200 mb-6 flex gap-1">
+                <button id="ctab-grafico" onclick="trocarConteudo('grafico')" class="ctab ctab-ativo">Gráfico da
+                    turma</button>
+                <button id="ctab-planilha" onclick="trocarConteudo('planilha')" class="ctab">Planilha de
+                    alunos</button>
             </div>
 
-            <div id="paginacao-container" class="hidden border-t px-4 py-3 bg-gray-50">
-                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                    <div class="text-sm text-gray-600"><span id="paginacao-info"></span></div>
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <button onclick="irParaPagina(1)" id="btn-primeira"
-                            class="px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">Primeira</button>
-                        <button onclick="paginaAnterior()" id="btn-anterior"
-                            class="px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">Anterior</button>
-                        <div id="paginacao-botoes" class="flex items-center gap-1 flex-wrap"></div>
-                        <button onclick="proximaPagina()" id="btn-proxima"
-                            class="px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">Próxima</button>
-                        <button onclick="irParaPagina(totalPaginas)" id="btn-ultima"
-                            class="px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">Última</button>
+            <!-- ===== Painel: Gráfico da turma ===== -->
+            <div id="painel-grafico">
+                <div id="grafico-vazio"
+                    class="bg-white rounded-xl border border-slate-200 text-center py-16 text-slate-400 text-sm">
+                    Processe os diários para visualizar o gráfico da turma.
+                </div>
+                <div id="grafico-conteudo"
+                    class="hidden bg-white rounded-xl border border-slate-200 overflow-hidden">
+                    <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                        <div class="flex items-start justify-between gap-4 flex-wrap">
+                            <div>
+                                <h3 class="text-lg font-bold text-slate-900">Frequência geral — todos os alunos</h3>
+                                <p class="text-slate-500 text-sm mt-0.5">Uma linha por aluno · eixo X = meses · limiar
+                                    crítico 75%</p>
+                            </div>
+                            <select id="select-disciplina-grafico-geral" onchange="atualizarGraficoGeralCompleto()"
+                                class="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-600 bg-white"></select>
+                        </div>
+                    </div>
+
+                    <div class="px-5 py-4 border-b border-slate-200">
+                        <div class="flex flex-wrap items-center gap-3 text-sm font-semibold text-slate-700">
+                            <span>Mostrar alunos com presença geral entre</span>
+                            <span id="texto-faixa-min" class="text-indigo-600 text-xl font-extrabold">0%</span>
+                            <span id="texto-faixa-max" class="text-indigo-600 text-xl font-extrabold">100%</span>
+                            <div class="faixa-slider-wrap mx-2">
+                                <div class="faixa-slider-base"></div>
+                                <div id="faixa-slider-ativa" class="faixa-slider-ativa"></div>
+                                <input id="slider-min-geral" type="range" min="0" max="100" step="1" value="0"
+                                    class="faixa-slider" oninput="sincronizarSlidersGerais('min')">
+                                <input id="slider-max-geral" type="range" min="0" max="100" step="1" value="100"
+                                    class="faixa-slider" oninput="sincronizarSlidersGerais('max')">
+                            </div>
+                            <span id="contador-alunos-grafico-geral" class="text-slate-400 text-sm font-semibold">0
+                                alunos exibidos</span>
+                            <button onclick="mostrarTodosGraficoGeral()"
+                                class="text-indigo-500 font-bold hover:underline">Mostrar todos</button>
+                        </div>
+                        <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                            <button id="btn-filtro-acima" onclick="aplicarFiltroRapidoGrafico('acima')"
+                                class="btn-filtro-geral chip-status verde">
+                                <span class="chip-bola bg-green-400"></span>Acima de 75% (média geral)
+                            </button>
+                            <button id="btn-filtro-abaixo" onclick="aplicarFiltroRapidoGrafico('abaixo')"
+                                class="btn-filtro-geral chip-status vermelho">
+                                <span class="chip-bola bg-red-500"></span>Abaixo de 75% (média geral)
+                            </button>
+                            <span class="chip-status amarelo">
+                                <span class="chip-bola bg-yellow-400"></span>Linha tracejada = limiar 75%
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px]">
+                        <div class="p-4">
+                            <div class="h-[520px]">
+                                <canvas id="grafico-geral-alunos"></canvas>
+                            </div>
+                        </div>
+                        <div class="legenda-painel flex flex-col">
+                            <div class="px-5 py-4 border-b bg-white flex items-center justify-between">
+                                <div class="text-lg font-extrabold tracking-wide text-gray-700">ALUNOS</div>
+                                <div class="text-xs flex items-center gap-2">
+                                    <button onclick="exibirTodosDatasetsGraficoGeral()"
+                                        class="text-indigo-500 hover:underline">Exibir todos</button>
+                                    <span class="text-gray-300">|</span>
+                                    <button onclick="ocultarTodosDatasetsGraficoGeral()"
+                                        class="text-red-500 hover:underline">Ocultar todos</button>
+                                </div>
+                            </div>
+                            <div id="lista-legenda-grafico-geral"
+                                class="flex-1 overflow-y-auto p-3 space-y-1 max-h-64 xl:max-h-none"></div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div id="vazio" class="hidden text-center py-10 text-gray-500">Nenhum resultado encontrado</div>
+            <!-- ===== Painel: Planilha de alunos ===== -->
+            <div id="painel-planilha" class="hidden">
+                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                    <div class="p-4 border-b border-slate-200">
+                        <div class="relative">
+                            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none"
+                                stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
+                            </svg>
+                            <input id="busca_geral" oninput="filtrarTabela()" placeholder="Buscar aluno..."
+                                class="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto w-full">
+                        <table class="w-full text-sm border-collapse">
+                            <thead id="tabela-cabecalho"></thead>
+                            <tbody id="tabela-corpo"></tbody>
+                        </table>
+                    </div>
+
+                    <div id="paginacao-container" class="hidden border-t border-slate-200 px-4 py-3 bg-slate-50">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                            <div class="text-sm text-gray-600"><span id="paginacao-info"></span></div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <button onclick="irParaPagina(1)" id="btn-primeira"
+                                    class="px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">Primeira</button>
+                                <button onclick="paginaAnterior()" id="btn-anterior"
+                                    class="px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">Anterior</button>
+                                <div id="paginacao-botoes" class="flex items-center gap-1 flex-wrap"></div>
+                                <button onclick="proximaPagina()" id="btn-proxima"
+                                    class="px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">Próxima</button>
+                                <button onclick="irParaPagina(totalPaginas)" id="btn-ultima"
+                                    class="px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">Última</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="vazio" class="hidden text-center py-10 text-gray-500">Nenhum resultado encontrado</div>
+                </div>
+            </div>
+
+        </main>
     </div>
 
     <div id="modal-periodos" class="hidden fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4">
@@ -488,107 +682,20 @@
         </div>
     </div>
 
-    <div id="modal-grafico-geral" class="hidden fixed inset-0 z-50 bg-black/50 items-center justify-center p-6"
-        onclick="fecharModalGraficoGeral(event)">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-[78vw] h-[78vh] overflow-hidden flex flex-col"
-            onclick="event.stopPropagation()">
-
-            <div class="px-6 py-5 border-b bg-gray-50">
-                <div class="flex items-start justify-between gap-4 flex-wrap">
-                    <div>
-                        <h3 class="text-2xl font-extrabold text-gray-900">Frequência geral — todos os alunos</h3>
-                        <p class="text-gray-500 text-base mt-1">Uma linha por aluno · eixo X = meses · limiar crítico
-                            75%</p>
-                    </div>
-
-                    <div class="flex items-center gap-4">
-                        <select id="select-disciplina-grafico-geral" onchange="atualizarGraficoGeralCompleto()"
-                            class="border border-gray-300 rounded-xl px-3 py-2 text-base text-gray-600 bg-white">
-                        </select>
-                        <button onclick="fecharModalGraficoGeral()"
-                            class="text-gray-400 hover:text-gray-700 text-3xl leading-none">&times;</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="px-6 py-5 border-b">
-                <div class="flex flex-wrap items-center gap-3 text-sm font-semibold text-gray-700">
-                    <span>Mostrar alunos com presença geral entre</span>
-                    <span id="texto-faixa-min" class="text-indigo-600 text-2xl font-extrabold">0%</span>
-                    <span id="texto-faixa-max" class="text-indigo-600 text-2xl font-extrabold">100%</span>
-
-                    <div class="faixa-slider-wrap mx-2">
-                        <div class="faixa-slider-base"></div>
-                        <div id="faixa-slider-ativa" class="faixa-slider-ativa"></div>
-                        <input id="slider-min-geral" type="range" min="0" max="100" step="1" value="0"
-                            class="faixa-slider" oninput="sincronizarSlidersGerais('min')">
-                        <input id="slider-max-geral" type="range" min="0" max="100" step="1" value="100"
-                            class="faixa-slider" oninput="sincronizarSlidersGerais('max')">
-                    </div>
-
-                    <span id="contador-alunos-grafico-geral" class="text-gray-400 text-sm font-semibold">0 alunos
-                        exibidos</span>
-
-                    <button onclick="mostrarTodosGraficoGeral()" class="text-indigo-500 font-bold hover:underline">
-                        Mostrar todos
-                    </button>
-                </div>
-
-                <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
-                    <button id="btn-filtro-acima" onclick="aplicarFiltroRapidoGrafico('acima')"
-                        class="btn-filtro-geral chip-status verde">
-                        <span class="chip-bola bg-green-400"></span>Acima de 75% (média geral)
-                    </button>
-                    <button id="btn-filtro-abaixo" onclick="aplicarFiltroRapidoGrafico('abaixo')"
-                        class="btn-filtro-geral chip-status vermelho">
-                        <span class="chip-bola bg-red-500"></span>Abaixo de 75% (média geral)
-                    </button>
-                    <span class="chip-status amarelo">
-                        <span class="chip-bola bg-yellow-400"></span>Linha tracejada = limiar 75%
-                    </span>
-                    <span class="text-gray-400">· Clique na legenda abaixo para ocultar/exibir alunos
-                        individualmente</span>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 xl:grid-cols-[1fr_280px] flex-1 min-h-0">
-                <div class="p-4 h-full min-h-0">
-                    <div class="h-full min-h-0">
-                        <canvas id="grafico-geral-alunos"></canvas>
-                    </div>
-                </div>
-
-                <div class="legenda-painel flex flex-col h-full min-h-0">
-                    <div class="px-5 py-4 border-b bg-white flex items-center justify-between">
-                        <div class="text-2xl font-extrabold tracking-wide text-gray-700">ALUNOS</div>
-                        <div class="text-sm flex items-center gap-2">
-                            <button onclick="exibirTodosDatasetsGraficoGeral()"
-                                class="text-indigo-500 hover:underline">Exibir todos</button>
-                            <span class="text-gray-300">|</span>
-                            <button onclick="ocultarTodosDatasetsGraficoGeral()"
-                                class="text-red-500 hover:underline">Ocultar todos</button>
-                        </div>
-                    </div>
-                    <div id="lista-legenda-grafico-geral" class="flex-1 overflow-y-auto p-3 space-y-1 min-h-0"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <footer class="mt-10 bg-gray-100 border-t border-gray-200">
-        <div class="max-w-[98vw] mx-auto px-4 py-6 text-center">
-            <p class="text-sm text-gray-700 mb-4">
-                Desenvolvido por
-                <a href="mailto:rafael.parizi@iffar.edu.br" class="text-blue-700 font-semibold hover:underline">Rafael
-                    Parizi</a>
-            </p>
-            <div class="flex justify-center">
-                <img id="logo-iffar-footer" src="iffar-horizontal.png" alt="Logo IFFar" class="h-20 object-contain">
-            </div>
-        </div>
-    </footer>
+    <img id="logo-iffar-footer" src="iffar-horizontal.png" alt="Logo IFFar" class="hidden">
 
     <script>
+        // v1: exige "login" (feito em auth.html). Sem a flag, volta para o login.
+        if (localStorage.getItem('presente_auth') !== '1') {
+            location.replace('auth.html');
+        }
+
+        function sair() {
+            localStorage.removeItem('presente_auth');
+            localStorage.removeItem('presente_auth_ts');
+            location.replace('auth.html');
+        }
+
         // const API_URL = "http://127.0.0.1:5001";
         const API_URL = "https://conta-faltas.vercel.app";
 
@@ -908,10 +1015,33 @@
             document.getElementById('modal-frequencia').classList.remove('flex');
         }
 
-        function fecharModalGraficoGeral(event) {
-            if (event && event.target !== document.getElementById('modal-grafico-geral')) return;
-            document.getElementById('modal-grafico-geral').classList.add('hidden');
-            document.getElementById('modal-grafico-geral').classList.remove('flex');
+        function fecharModalGraficoGeral() { /* gráfico agora é uma aba fixa; nada a fechar */ }
+
+        let conteudoAtual = 'grafico';
+
+        function trocarConteudo(view) {
+            if (view === 'grafico' && abaAtual !== 'frequencia') return;
+            conteudoAtual = view;
+
+            document.getElementById('ctab-grafico').classList.toggle('ctab-ativo', view === 'grafico');
+            document.getElementById('ctab-planilha').classList.toggle('ctab-ativo', view === 'planilha');
+            document.getElementById('painel-grafico').classList.toggle('hidden', view !== 'grafico');
+            document.getElementById('painel-planilha').classList.toggle('hidden', view !== 'planilha');
+
+            if (view === 'grafico') renderizarPainelGrafico();
+        }
+
+        function renderizarPainelGrafico() {
+            const temDados = dadosTabela && dadosTabela.length > 0 && abaAtual === 'frequencia';
+            document.getElementById('grafico-vazio').classList.toggle('hidden', temDados);
+            document.getElementById('grafico-conteudo').classList.toggle('hidden', !temDados);
+            if (!temDados) return;
+
+            preencherSelectDisciplinasGrafico();
+            filtroRapidoGeral = 'todos';
+            mostrarTodosGraficoGeral();
+            atualizarBotoesFiltroRapido();
+            atualizarGraficoGeralCompleto();
         }
 
         function carregarImagemComoBase64(imgElement) {
@@ -1047,11 +1177,11 @@
             const tituloTabela = document.getElementById('titulo-tabela');
             const tituloCard = document.getElementById('titulo-card-total');
             const files = document.getElementById('arquivos').files;
-            const btnGraficoGeral = document.getElementById('btn-grafico-geral');
+            const ctabGrafico = document.getElementById('ctab-grafico');
 
             if (aba === 'frequencia') {
-                tabFreq.className = 'flex-1 px-4 py-3 font-semibold text-blue-700 border-b-2 border-blue-600 bg-blue-50 rounded-tl-xl';
-                tabEvasao.className = 'flex-1 px-4 py-3 font-semibold text-gray-600 hover:bg-gray-50 rounded-tr-xl';
+                tabFreq.classList.add('nav-ativo');
+                tabEvasao.classList.remove('nav-ativo');
 
                 descricao.innerText = 'Visualize a frequência dos alunos em todos os meses disponíveis no diário.';
                 painelMes.classList.add('hidden');
@@ -1060,7 +1190,7 @@
                 tituloCard.innerText = 'Total de alunos';
                 colunaOrdenacao = 'nome';
                 ordemDesc = false;
-                btnGraficoGeral.classList.remove('hidden');
+                ctabGrafico.disabled = false;
 
                 if (cacheFrequencia.length > 0) {
                     dadosTabela = [...cacheFrequencia];
@@ -1074,8 +1204,8 @@
                     return;
                 }
             } else {
-                tabFreq.className = 'flex-1 px-4 py-3 font-semibold text-gray-600 hover:bg-gray-50 rounded-tl-xl';
-                tabEvasao.className = 'flex-1 px-4 py-3 font-semibold text-blue-700 border-b-2 border-blue-600 bg-blue-50 rounded-tr-xl';
+                tabFreq.classList.remove('nav-ativo');
+                tabEvasao.classList.add('nav-ativo');
 
                 descricao.innerText = 'Busque alunos com padrão de evasão considerando o mês selecionado.';
                 painelMes.classList.remove('hidden');
@@ -1084,7 +1214,8 @@
                 tituloCard.innerText = 'Total de alunos faltantes';
                 colunaOrdenacao = 'faltas';
                 ordemDesc = true;
-                btnGraficoGeral.classList.add('hidden');
+                ctabGrafico.disabled = true;
+                trocarConteudo('planilha');
 
                 const mesAtual = document.getElementById('mes_analise').value;
 
@@ -1142,6 +1273,8 @@
             atualizarCardsResumo(dadosFiltradosAtuais);
             atualizarPaginacao(dadosFiltradosAtuais);
             document.getElementById('vazio').classList.toggle('hidden', dadosFiltradosAtuais.length > 0);
+
+            if (conteudoAtual === 'grafico') renderizarPainelGrafico();
         }
 
         function atualizarCabecalhoTabela() {
@@ -1421,19 +1554,19 @@
             document.getElementById('card-disciplinas').innerHTML = Object.entries(map)
                 .sort((a, b) => b[1].total - a[1].total)
                 .map(([d, info]) => `
-            <div onclick="filtrarPorDisciplina('${String(d).replace(/'/g, "\\'")}')" class="flex justify-between border p-3 rounded-lg cursor-pointer hover:bg-blue-50 mb-3 shadow-sm bg-white">
-                <div class="flex-1">
-                    <div class="font-bold text-gray-800 text-lg">${d}</div>
-                    <div class="text-[11px] text-blue-700 font-bold uppercase tracking-wider mb-1">${info.curso}</div>
-                    <div class="text-[10px] text-gray-500 font-medium">Coordenador(a): <span class="text-gray-700">${info.coordenador}</span></div>
-                    <div class="text-xs text-gray-600 mt-2 bg-gray-100 inline-block px-2 py-1 rounded">
-                        <span class="font-semibold">Docente:</span> ${info.matriculaDocente} ${info.docente}
+            <div onclick="filtrarPorDisciplina('${String(d).replace(/'/g, "\\'")}')" title="Docente: ${info.matriculaDocente} ${info.docente} · Coordenação: ${info.coordenador}"
+                class="border border-slate-200 p-3 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 bg-white transition">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <div class="font-bold text-slate-800 text-sm leading-snug line-clamp-2">${d}</div>
+                        <div class="text-[10px] text-blue-700 font-bold uppercase tracking-wider mt-1 truncate">${info.curso}</div>
+                    </div>
+                    <div class="flex flex-col items-center shrink-0">
+                        <span class="font-bold text-blue-700 text-xl leading-none">${info.total}</span>
+                        <span class="text-[9px] text-gray-400 uppercase font-bold">alunos</span>
                     </div>
                 </div>
-                <div class="flex flex-col items-end justify-center ml-4">
-                    <span class="text-[10px] text-gray-400 uppercase font-bold">Alunos</span>
-                    <span class="font-bold text-blue-700 text-2xl">${info.total}</span>
-                </div>
+                <div class="text-[10px] text-gray-500 mt-2 truncate">${info.docente}</div>
             </div>
         `).join('');
         }
@@ -1492,23 +1625,7 @@
         }
 
         function abrirModalGraficoGeral() {
-            if (abaAtual !== 'frequencia') {
-                alert("O gráfico geral está disponível apenas na aba 'Frequência geral por mês'.");
-                return;
-            }
-
-            if (!dadosTabela || dadosTabela.length === 0) {
-                alert("Processe os arquivos primeiro para visualizar o gráfico geral.");
-                return;
-            }
-
-            preencherSelectDisciplinasGrafico();
-            document.getElementById('modal-grafico-geral').classList.remove('hidden');
-            document.getElementById('modal-grafico-geral').classList.add('flex');
-            filtroRapidoGeral = 'todos';
-            mostrarTodosGraficoGeral();
-            atualizarBotoesFiltroRapido();
-            atualizarGraficoGeralCompleto();
+            trocarConteudo('grafico');
         }
 
         function sincronizarSlidersGerais(origem) {
@@ -1654,6 +1771,17 @@
             }).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
         }
 
+        // Meses efetivamente presentes nos diários processados (na ordem do semestre).
+        function obterMesesPresentes() {
+            const presentes = ordemMeses.filter(mes =>
+                (dadosTabela || []).some(item =>
+                    normalizarNumero(item[`${mes}_Total_Aulas`]) !== null ||
+                    normalizarNumero(item[`${mes}_%_Presença`]) !== null
+                )
+            );
+            return presentes.length ? presentes : ordemMeses;
+        }
+
         function atualizarGraficoGeralCompleto() {
             const min = Number(document.getElementById('slider-min-geral').value);
             const max = Number(document.getElementById('slider-max-geral').value);
@@ -1671,9 +1799,12 @@
                 return false;
             });
 
+            const meses = obterMesesPresentes();
+            const indices = meses.map(m => ordemMeses.indexOf(m));
+
             const datasets = alunos.map(aluno => ({
                 label: aluno.nome,
-                data: aluno.serie,
+                data: indices.map(i => aluno.serie[i]),
                 borderColor: aluno.cor,
                 backgroundColor: aluno.cor,
                 pointBackgroundColor: aluno.cor,
@@ -1697,7 +1828,7 @@
             graficoGeralAlunos = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: ordemMeses,
+                    labels: meses,
                     datasets
                 },
                 options: {
@@ -1890,6 +2021,15 @@
         trocarAba('frequencia');
         atualizarFaixaVisualSlider();
         atualizarBotoesFiltroRapido();
+
+        document.getElementById('arquivos').addEventListener('change', function () {
+            const info = document.getElementById('arquivos-info');
+            const n = this.files.length;
+            if (!n) { info.textContent = ''; return; }
+            info.textContent = n === 1
+                ? this.files[0].name
+                : `${n} arquivos selecionados`;
+        });
 
         document.getElementById('mes_analise').addEventListener('change', async function () {
             if (abaAtual !== 'evasao') return;
