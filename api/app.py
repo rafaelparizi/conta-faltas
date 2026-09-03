@@ -676,6 +676,10 @@ def _desempenho_por_semestre(componentes):
     for d in sorted(por.values(), key=lambda x: _ordenar_periodo(x["periodo"])):
         medias = d.pop("_medias")
         d["media_semestre"] = round(sum(medias) / len(medias), 2) if medias else None
+        # taxas sobre os componentes avaliados no semestre (aprovados + reprovados)
+        avaliados = d["aprovados"] + d["reprovados"]
+        d["pct_aprovacao"] = round(d["aprovados"] / avaliados * 100, 1) if avaliados else None
+        d["pct_reprovacao"] = round(d["reprovados"] / avaliados * 100, 1) if avaliados else None
         saida.append(d)
     return saida
 

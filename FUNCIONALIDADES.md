@@ -130,7 +130,8 @@ para **um** aluno, um resumo pronto para virar JSON de API:
     `disciplinas_a_cursar` (com `matriculado_atualmente`), `reprovacoes_detalhe`
     (com `carga_horaria`, `media`, `freq_pct`, `situacao`);
   - `desempenho_por_semestre`: por período letivo, contagem de componentes /
-    aprovados / reprovados / em curso e `media_semestre` (média dos avaliados).
+    aprovados / reprovados / em curso, `media_semestre` (média dos avaliados) e
+    `pct_aprovacao` / `pct_reprovacao` (sobre aprovados + reprovados do semestre).
 - Funções: `parse_historico(pdf)` → `HistoricoAluno`; `resumo_status(h)` → `dict`.
   Validado contra os 2 históricos de teste.
 
@@ -179,10 +180,12 @@ para **um** aluno, um resumo pronto para virar JSON de API:
     lado; (5) **disciplinas reprovadas** abaixo, em largura total. Cada card de
     disciplinas mostra o **docente** e tem **campo de busca** (filtra por código,
     componente ou docente, com contador "N de N"). Disciplinas em que o aluno
-    está matriculado agora recebem o badge "Matriculado". Abaixo do card de
-    progresso há o botão **"Gerar relatório PDF"** (jsPDF + jspdf-autotable), que
-    monta um relatório com cabeçalho institucional, dados do aluno, progresso,
-    desempenho por semestre e as três tabelas de disciplinas (com docente).
+    está matriculado agora recebem o badge "Matriculado". No canto inferior
+    esquerdo do card de progresso há o botão **"Gerar relatório PDF"** (jsPDF +
+    jspdf-autotable): cabeçalho institucional, dados do aluno, progresso,
+    tabela de desempenho por semestre (com % de aprovação/reprovação) **+ o
+    próprio gráfico**, e as três tabelas de disciplinas (com docente). O arquivo
+    sai como `avaliacao_<nome-do-aluno>_<matrícula>.pdf`.
   - **JSON** — retorno bruto da API com botão "Copiar JSON".
   Trocar de modo limpa o arquivo selecionado.
 

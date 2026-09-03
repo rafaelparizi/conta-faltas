@@ -336,7 +336,8 @@
             class="lg:w-72 lg:shrink-0 bg-white border-b lg:border-b-0 lg:border-r border-slate-200 lg:sticky lg:top-0 lg:h-screen flex flex-col">
             <div class="px-6 py-5 border-b border-slate-200 flex items-center gap-3">
                 <div class="w-9 h-9 rounded-lg bg-blue-700 flex items-center justify-center shrink-0">
-                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2"
+                        viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 19V13m4 6V5m4 14v-8M4 19h16" />
                     </svg>
                 </div>
@@ -367,7 +368,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round"
                             d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
-                    Avaliação aluno (individual)
+                    Avaliação aluno (individual) - Apenas Superior
                 </button>
 
                 <div id="painel-mes" class="hidden mt-3 px-2">
@@ -394,8 +395,8 @@
                 <div class="px-2">
                     <label for="arquivos"
                         class="block border-2 border-dashed border-slate-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
-                        <svg class="w-6 h-6 mx-auto text-slate-400 mb-1" fill="none" stroke="currentColor" stroke-width="2"
-                            viewBox="0 0 24 24">
+                        <svg class="w-6 h-6 mx-auto text-slate-400 mb-1" fill="none" stroke="currentColor"
+                            stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round"
                                 d="M7 16a4 4 0 01-.88-7.9A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 13l3-3 3 3M12 10v11" />
                         </svg>
@@ -410,9 +411,12 @@
                         Processar relatório
                     </button>
 
-                    <div id="loading" class="hidden mt-3 flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2">
-                        <span class="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-b-transparent shrink-0"></span>
-                        <p class="text-[0.7rem] font-medium text-blue-800 leading-tight">Analisando documentos… isso pode levar alguns segundos.</p>
+                    <div id="loading"
+                        class="hidden mt-3 flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2">
+                        <span
+                            class="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-b-transparent shrink-0"></span>
+                        <p class="text-[0.7rem] font-medium text-blue-800 leading-tight">Analisando documentos… isso
+                            pode levar alguns segundos.</p>
                     </div>
                 </div>
             </nav>
@@ -438,7 +442,8 @@
 
             <header class="mb-6 flex items-start justify-between gap-4 flex-wrap">
                 <div class="min-w-0">
-                    <h1 id="titulo-tabela" class="text-2xl font-bold text-slate-900">Relatório de frequência por mês</h1>
+                    <h1 id="titulo-tabela" class="text-2xl font-bold text-slate-900">Relatório de frequência por mês
+                    </h1>
                     <p id="descricao-aba" class="text-sm text-slate-500 mt-1">Visualize a frequência dos alunos em todos
                         os meses disponíveis no diário.</p>
                 </div>
@@ -457,163 +462,166 @@
             </header>
 
             <div id="modo-diario">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                <div class="kpi-card">
-                    <p id="titulo-card-total" class="text-xs text-slate-500 uppercase font-bold tracking-wide">Total de
-                        alunos</p>
-                    <p id="card-total-alunos" class="mt-2 text-4xl font-extrabold text-blue-700">0</p>
-                </div>
-                <div class="kpi-card">
-                    <p class="text-xs text-slate-500 uppercase font-bold tracking-wide">Frequência média</p>
-                    <p id="card-frequencia-media" class="mt-2 text-4xl font-extrabold text-green-600">0%</p>
-                </div>
-                <div class="kpi-card border-l-4 border-l-red-500">
-                    <p class="text-xs text-slate-500 uppercase font-bold tracking-wide">Alertas de evasão</p>
-                    <p id="card-alertas" class="mt-2 text-4xl font-extrabold text-red-500">0</p>
-                </div>
-            </div>
-
-            <!-- Resumo por disciplina (antes da tabela) -->
-            <div class="bg-white rounded-xl border border-slate-200 p-5 mb-6">
-                <div class="flex justify-between items-center mb-3">
-                    <p class="text-xs text-slate-500 uppercase font-bold tracking-wide">Disciplinas × alunos</p>
-                    <div class="flex items-center gap-2">
-                        <span id="resumo-disciplinas-qtd" class="text-xs text-gray-400">0</span>
-                        <button onclick="limparFiltro()" class="text-xs text-blue-600 hover:underline">Limpar</button>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                    <div class="kpi-card">
+                        <p id="titulo-card-total" class="text-xs text-slate-500 uppercase font-bold tracking-wide">Total
+                            de
+                            alunos</p>
+                        <p id="card-total-alunos" class="mt-2 text-4xl font-extrabold text-blue-700">0</p>
+                    </div>
+                    <div class="kpi-card">
+                        <p class="text-xs text-slate-500 uppercase font-bold tracking-wide">Frequência média</p>
+                        <p id="card-frequencia-media" class="mt-2 text-4xl font-extrabold text-green-600">0%</p>
+                    </div>
+                    <div class="kpi-card border-l-4 border-l-red-500">
+                        <p class="text-xs text-slate-500 uppercase font-bold tracking-wide">Alertas de evasão</p>
+                        <p id="card-alertas" class="mt-2 text-4xl font-extrabold text-red-500">0</p>
                     </div>
                 </div>
-                <div id="card-disciplinas"
-                    class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 overflow-y-auto max-h-80">
-                </div>
-            </div>
 
-            <!-- Abas de conteúdo -->
-            <div class="border-b border-slate-200 mb-6 flex gap-1">
-                <button id="ctab-grafico" onclick="trocarConteudo('grafico')" class="ctab ctab-ativo">Gráfico da
-                    turma</button>
-                <button id="ctab-planilha" onclick="trocarConteudo('planilha')" class="ctab">Planilha de
-                    alunos</button>
-            </div>
-
-            <!-- ===== Painel: Gráfico da turma ===== -->
-            <div id="painel-grafico">
-                <div id="grafico-vazio"
-                    class="bg-white rounded-xl border border-slate-200 text-center py-16 text-slate-400 text-sm">
-                    Processe os diários para visualizar o gráfico da turma.
-                </div>
-                <div id="grafico-conteudo"
-                    class="hidden bg-white rounded-xl border border-slate-200 overflow-hidden">
-                    <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
-                        <div class="flex items-start justify-between gap-4 flex-wrap">
-                            <div>
-                                <h3 class="text-lg font-bold text-slate-900">Frequência geral — todos os alunos</h3>
-                                <p class="text-slate-500 text-sm mt-0.5">Uma linha por aluno · eixo X = meses · limiar
-                                    crítico 75%</p>
-                            </div>
-                            <select id="select-disciplina-grafico-geral" onchange="atualizarGraficoGeralCompleto()"
-                                class="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-600 bg-white"></select>
+                <!-- Resumo por disciplina (antes da tabela) -->
+                <div class="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+                    <div class="flex justify-between items-center mb-3">
+                        <p class="text-xs text-slate-500 uppercase font-bold tracking-wide">Disciplinas × alunos</p>
+                        <div class="flex items-center gap-2">
+                            <span id="resumo-disciplinas-qtd" class="text-xs text-gray-400">0</span>
+                            <button onclick="limparFiltro()"
+                                class="text-xs text-blue-600 hover:underline">Limpar</button>
                         </div>
                     </div>
-
-                    <div class="px-5 py-4 border-b border-slate-200">
-                        <div class="flex flex-wrap items-center gap-3 text-sm font-semibold text-slate-700">
-                            <span>Mostrar alunos com presença geral entre</span>
-                            <span id="texto-faixa-min" class="text-indigo-600 text-xl font-extrabold">0%</span>
-                            <span id="texto-faixa-max" class="text-indigo-600 text-xl font-extrabold">100%</span>
-                            <div class="faixa-slider-wrap mx-2">
-                                <div class="faixa-slider-base"></div>
-                                <div id="faixa-slider-ativa" class="faixa-slider-ativa"></div>
-                                <input id="slider-min-geral" type="range" min="0" max="100" step="1" value="0"
-                                    class="faixa-slider" oninput="sincronizarSlidersGerais('min')">
-                                <input id="slider-max-geral" type="range" min="0" max="100" step="1" value="100"
-                                    class="faixa-slider" oninput="sincronizarSlidersGerais('max')">
-                            </div>
-                            <span id="contador-alunos-grafico-geral" class="text-slate-400 text-sm font-semibold">0
-                                alunos exibidos</span>
-                            <button onclick="mostrarTodosGraficoGeral()"
-                                class="text-indigo-500 font-bold hover:underline">Mostrar todos</button>
-                        </div>
-                        <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
-                            <button id="btn-filtro-acima" onclick="aplicarFiltroRapidoGrafico('acima')"
-                                class="btn-filtro-geral chip-status verde">
-                                <span class="chip-bola bg-green-400"></span>Acima de 75% (média geral)
-                            </button>
-                            <button id="btn-filtro-abaixo" onclick="aplicarFiltroRapidoGrafico('abaixo')"
-                                class="btn-filtro-geral chip-status vermelho">
-                                <span class="chip-bola bg-red-500"></span>Abaixo de 75% (média geral)
-                            </button>
-                            <span class="chip-status amarelo">
-                                <span class="chip-bola bg-yellow-400"></span>Linha tracejada = limiar 75%
-                            </span>
-                        </div>
+                    <div id="card-disciplinas"
+                        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 overflow-y-auto max-h-80">
                     </div>
+                </div>
 
-                    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px]">
-                        <div class="p-4">
-                            <div class="h-[520px]">
-                                <canvas id="grafico-geral-alunos"></canvas>
+                <!-- Abas de conteúdo -->
+                <div class="border-b border-slate-200 mb-6 flex gap-1">
+                    <button id="ctab-grafico" onclick="trocarConteudo('grafico')" class="ctab ctab-ativo">Gráfico da
+                        turma</button>
+                    <button id="ctab-planilha" onclick="trocarConteudo('planilha')" class="ctab">Planilha de
+                        alunos</button>
+                </div>
+
+                <!-- ===== Painel: Gráfico da turma ===== -->
+                <div id="painel-grafico">
+                    <div id="grafico-vazio"
+                        class="bg-white rounded-xl border border-slate-200 text-center py-16 text-slate-400 text-sm">
+                        Processe os diários para visualizar o gráfico da turma.
+                    </div>
+                    <div id="grafico-conteudo"
+                        class="hidden bg-white rounded-xl border border-slate-200 overflow-hidden">
+                        <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
+                            <div class="flex items-start justify-between gap-4 flex-wrap">
+                                <div>
+                                    <h3 class="text-lg font-bold text-slate-900">Frequência geral — todos os alunos</h3>
+                                    <p class="text-slate-500 text-sm mt-0.5">Uma linha por aluno · eixo X = meses ·
+                                        limiar
+                                        crítico 75%</p>
+                                </div>
+                                <select id="select-disciplina-grafico-geral" onchange="atualizarGraficoGeralCompleto()"
+                                    class="border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-600 bg-white"></select>
                             </div>
                         </div>
-                        <div class="legenda-painel flex flex-col">
-                            <div class="px-5 py-4 border-b bg-white flex items-center justify-between">
-                                <div class="text-lg font-extrabold tracking-wide text-gray-700">ALUNOS</div>
-                                <div class="text-xs flex items-center gap-2">
-                                    <button onclick="exibirTodosDatasetsGraficoGeral()"
-                                        class="text-indigo-500 hover:underline">Exibir todos</button>
-                                    <span class="text-gray-300">|</span>
-                                    <button onclick="ocultarTodosDatasetsGraficoGeral()"
-                                        class="text-red-500 hover:underline">Ocultar todos</button>
+
+                        <div class="px-5 py-4 border-b border-slate-200">
+                            <div class="flex flex-wrap items-center gap-3 text-sm font-semibold text-slate-700">
+                                <span>Mostrar alunos com presença geral entre</span>
+                                <span id="texto-faixa-min" class="text-indigo-600 text-xl font-extrabold">0%</span>
+                                <span id="texto-faixa-max" class="text-indigo-600 text-xl font-extrabold">100%</span>
+                                <div class="faixa-slider-wrap mx-2">
+                                    <div class="faixa-slider-base"></div>
+                                    <div id="faixa-slider-ativa" class="faixa-slider-ativa"></div>
+                                    <input id="slider-min-geral" type="range" min="0" max="100" step="1" value="0"
+                                        class="faixa-slider" oninput="sincronizarSlidersGerais('min')">
+                                    <input id="slider-max-geral" type="range" min="0" max="100" step="1" value="100"
+                                        class="faixa-slider" oninput="sincronizarSlidersGerais('max')">
+                                </div>
+                                <span id="contador-alunos-grafico-geral" class="text-slate-400 text-sm font-semibold">0
+                                    alunos exibidos</span>
+                                <button onclick="mostrarTodosGraficoGeral()"
+                                    class="text-indigo-500 font-bold hover:underline">Mostrar todos</button>
+                            </div>
+                            <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                                <button id="btn-filtro-acima" onclick="aplicarFiltroRapidoGrafico('acima')"
+                                    class="btn-filtro-geral chip-status verde">
+                                    <span class="chip-bola bg-green-400"></span>Acima de 75% (média geral)
+                                </button>
+                                <button id="btn-filtro-abaixo" onclick="aplicarFiltroRapidoGrafico('abaixo')"
+                                    class="btn-filtro-geral chip-status vermelho">
+                                    <span class="chip-bola bg-red-500"></span>Abaixo de 75% (média geral)
+                                </button>
+                                <span class="chip-status amarelo">
+                                    <span class="chip-bola bg-yellow-400"></span>Linha tracejada = limiar 75%
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px]">
+                            <div class="p-4">
+                                <div class="h-[520px]">
+                                    <canvas id="grafico-geral-alunos"></canvas>
                                 </div>
                             </div>
-                            <div id="lista-legenda-grafico-geral"
-                                class="flex-1 overflow-y-auto p-3 space-y-1 max-h-64 xl:max-h-none"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ===== Painel: Planilha de alunos ===== -->
-            <div id="painel-planilha" class="hidden">
-                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                    <div class="p-4 border-b border-slate-200">
-                        <div class="relative">
-                            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none"
-                                stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
-                            </svg>
-                            <input id="busca_geral" oninput="filtrarTabela()" placeholder="Buscar aluno..."
-                                class="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                    </div>
-
-                    <div class="overflow-x-auto w-full">
-                        <table class="w-full text-sm border-collapse">
-                            <thead id="tabela-cabecalho"></thead>
-                            <tbody id="tabela-corpo"></tbody>
-                        </table>
-                    </div>
-
-                    <div id="paginacao-container" class="hidden border-t border-slate-200 px-4 py-3 bg-slate-50">
-                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                            <div class="text-sm text-gray-600"><span id="paginacao-info"></span></div>
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <button onclick="irParaPagina(1)" id="btn-primeira"
-                                    class="px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">Primeira</button>
-                                <button onclick="paginaAnterior()" id="btn-anterior"
-                                    class="px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">Anterior</button>
-                                <div id="paginacao-botoes" class="flex items-center gap-1 flex-wrap"></div>
-                                <button onclick="proximaPagina()" id="btn-proxima"
-                                    class="px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">Próxima</button>
-                                <button onclick="irParaPagina(totalPaginas)" id="btn-ultima"
-                                    class="px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">Última</button>
+                            <div class="legenda-painel flex flex-col">
+                                <div class="px-5 py-4 border-b bg-white flex items-center justify-between">
+                                    <div class="text-lg font-extrabold tracking-wide text-gray-700">ALUNOS</div>
+                                    <div class="text-xs flex items-center gap-2">
+                                        <button onclick="exibirTodosDatasetsGraficoGeral()"
+                                            class="text-indigo-500 hover:underline">Exibir todos</button>
+                                        <span class="text-gray-300">|</span>
+                                        <button onclick="ocultarTodosDatasetsGraficoGeral()"
+                                            class="text-red-500 hover:underline">Ocultar todos</button>
+                                    </div>
+                                </div>
+                                <div id="lista-legenda-grafico-geral"
+                                    class="flex-1 overflow-y-auto p-3 space-y-1 max-h-64 xl:max-h-none"></div>
                             </div>
                         </div>
                     </div>
-
-                    <div id="vazio" class="hidden text-center py-10 text-gray-500">Nenhum resultado encontrado</div>
                 </div>
-            </div>
+
+                <!-- ===== Painel: Planilha de alunos ===== -->
+                <div id="painel-planilha" class="hidden">
+                    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                        <div class="p-4 border-b border-slate-200">
+                            <div class="relative">
+                                <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none"
+                                    stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
+                                </svg>
+                                <input id="busca_geral" oninput="filtrarTabela()" placeholder="Buscar aluno..."
+                                    class="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto w-full">
+                            <table class="w-full text-sm border-collapse">
+                                <thead id="tabela-cabecalho"></thead>
+                                <tbody id="tabela-corpo"></tbody>
+                            </table>
+                        </div>
+
+                        <div id="paginacao-container" class="hidden border-t border-slate-200 px-4 py-3 bg-slate-50">
+                            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                <div class="text-sm text-gray-600"><span id="paginacao-info"></span></div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <button onclick="irParaPagina(1)" id="btn-primeira"
+                                        class="px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">Primeira</button>
+                                    <button onclick="paginaAnterior()" id="btn-anterior"
+                                        class="px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">Anterior</button>
+                                    <div id="paginacao-botoes" class="flex items-center gap-1 flex-wrap"></div>
+                                    <button onclick="proximaPagina()" id="btn-proxima"
+                                        class="px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">Próxima</button>
+                                    <button onclick="irParaPagina(totalPaginas)" id="btn-ultima"
+                                        class="px-3 py-1.5 text-sm rounded border bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">Última</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="vazio" class="hidden text-center py-10 text-gray-500">Nenhum resultado encontrado</div>
+                    </div>
+                </div>
             </div><!-- /#modo-diario -->
 
             <!-- ===== Modo: Avaliação individual do aluno ===== -->
@@ -632,9 +640,9 @@
 
                     <div id="hpanel-visao" class="space-y-5"></div>
 
-                    <div id="hpanel-json"
-                        class="hidden bg-white rounded-xl border border-slate-200 overflow-hidden">
-                        <div class="px-5 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
+                    <div id="hpanel-json" class="hidden bg-white rounded-xl border border-slate-200 overflow-hidden">
+                        <div
+                            class="px-5 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
                             <p class="text-slate-500 text-xs">Retorno bruto da API</p>
                             <button onclick="copiarHistoricoJson()"
                                 class="px-3 py-1.5 text-xs rounded-lg bg-slate-200 text-slate-700 font-semibold hover:bg-slate-300 transition whitespace-nowrap">
@@ -672,7 +680,8 @@
                 </div>
             </div>
             <div class="px-6 pt-4 pb-2">
-                <div class="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 leading-relaxed">
+                <div
+                    class="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 leading-relaxed">
                     <strong class="text-gray-700">Sugestão pela carga horária:</strong>
                     Técnico/Integrado — 40h ≈ 1, 80h ≈ 2, 120h ≈ 3 períodos/dia ·
                     Superior — 36h ≈ 2, 72h ≈ 4 períodos/dia.
@@ -920,9 +929,11 @@
 
                 _historicoAtual = json;
                 document.getElementById('historico-json').textContent = JSON.stringify(json, null, 2);
-                renderHistoricoCards(json);
-                trocarHistoricoTab('visao');
+                // torna o painel visível ANTES de montar os cards, para o
+                // gráfico ser criado com o container já dimensionado
                 document.getElementById('historico-conteudo').classList.remove('hidden');
+                trocarHistoricoTab('visao');
+                renderHistoricoCards(json);
             } catch (e) {
                 alert("Erro ao avaliar o histórico: " + e.message);
                 document.getElementById('historico-vazio').classList.remove('hidden');
@@ -955,9 +966,8 @@
         function _tabelaDisciplinas(itens, colunas, msgVazio = 'Nenhuma.') {
             if (!itens.length) return `<p class="text-sm text-slate-400 px-1 py-3">${msgVazio}</p>`;
             const th = colunas.map(c => `<th class="px-3 py-2 text-left font-semibold text-slate-500 whitespace-nowrap">${c.rot}</th>`).join('');
-            const linhas = itens.map(it => `<tr class="border-t border-slate-100">${
-                colunas.map(c => `<td class="px-3 py-2 ${c.cls || ''}">${c.get(it)}</td>`).join('')
-            }</tr>`).join('');
+            const linhas = itens.map(it => `<tr class="border-t border-slate-100">${colunas.map(c => `<td class="px-3 py-2 ${c.cls || ''}">${c.get(it)}</td>`).join('')
+                }</tr>`).join('');
             return `<div class="overflow-auto max-h-[460px]"><table class="w-full text-sm border-collapse">
                 <thead class="bg-slate-50 sticky top-0"><tr>${th}</tr></thead><tbody>${linhas}</tbody></table></div>`;
         }
@@ -1092,14 +1102,8 @@
                     Matriculado agora: <strong>${_fmtNum(ch.em_curso, 'h')}</strong> ·
                     Pendente (obrigatórias): <strong>${_fmtNum(ch.pendente, 'h')}</strong>
                 </p>
-                <p class="text-[0.7rem] text-slate-400 mt-1">${ch.obs || ''}</p>`);
-
-            // Desempenho por semestre (gráfico)
-            const cardSemestre = _cardHist('Desempenho por semestre', null,
-                `<div class="h-[320px]"><canvas id="grafico-historico"></canvas></div>`);
-
-            const botaoPdf = `
-                <div class="flex justify-end">
+                <p class="text-[0.7rem] text-slate-400 mt-1">${ch.obs || ''}</p>
+                <div class="mt-4">
                     <button onclick="gerarPdfHistorico()"
                         class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -1108,11 +1112,14 @@
                         </svg>
                         Gerar relatório PDF
                     </button>
-                </div>`;
+                </div>`);
+
+            // Desempenho por semestre (gráfico)
+            const cardSemestre = _cardHist('Desempenho por semestre', null,
+                `<div class="h-[320px]"><canvas id="grafico-historico"></canvas></div>`);
 
             document.getElementById('hpanel-visao').innerHTML = `
                 <div class="grid gap-5 lg:grid-cols-[3fr_2fr] items-start">${cardDados}${cardProgresso}</div>
-                ${botaoPdf}
                 ${cardSemestre}
                 <div class="grid gap-5 lg:grid-cols-2 items-start">${cardApr}${cardCursar}</div>
                 ${cardRep}`;
@@ -1120,11 +1127,8 @@
             _renderGraficoHistorico(j.desempenho_por_semestre || []);
         }
 
-        function _renderGraficoHistorico(semestres) {
-            const ctx = document.getElementById('grafico-historico');
-            if (!ctx) return;
-            if (graficoHistorico) graficoHistorico.destroy();
-            graficoHistorico = new Chart(ctx.getContext('2d'), {
+        function _configGraficoHistorico(semestres, opts) {
+            return {
                 data: {
                     labels: semestres.map(s => s.periodo),
                     datasets: [
@@ -1137,17 +1141,16 @@
                         {
                             type: 'bar', label: 'Aprovados', yAxisID: 'y1',
                             data: semestres.map(s => s.aprovados),
-                            backgroundColor: 'rgba(34,197,94,0.55)',
+                            backgroundColor: 'rgba(34,197,94,0.6)',
                         },
                         {
                             type: 'bar', label: 'Reprovados', yAxisID: 'y1',
                             data: semestres.map(s => s.reprovados),
-                            backgroundColor: 'rgba(239,68,68,0.55)',
+                            backgroundColor: 'rgba(239,68,68,0.6)',
                         },
                     ],
                 },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
+                options: Object.assign({
                     interaction: { mode: 'index', intersect: false },
                     scales: {
                         y: { position: 'left', min: 0, max: 10, title: { display: true, text: 'Média' } },
@@ -1157,8 +1160,30 @@
                         },
                     },
                     plugins: { legend: { position: 'bottom' } },
-                },
+                }, opts || {}),
+            };
+        }
+
+        function _renderGraficoHistorico(semestres) {
+            const ctx = document.getElementById('grafico-historico');
+            if (!ctx) return;
+            if (graficoHistorico) graficoHistorico.destroy();
+            graficoHistorico = new Chart(ctx.getContext('2d'),
+                _configGraficoHistorico(semestres, { responsive: true, maintainAspectRatio: false }));
+        }
+
+        // Renderiza o gráfico num canvas próprio (tamanho fixo) só para o PDF
+        function _imagemGraficoHistorico(semestres) {
+            if (!semestres || !semestres.length) return null;
+            const cv = document.createElement('canvas');
+            cv.width = 960; cv.height = 360;
+            const cfg = _configGraficoHistorico(semestres, {
+                responsive: false, animation: false, devicePixelRatio: 2,
             });
+            const ch = new Chart(cv.getContext('2d'), cfg);
+            const img = ch.toBase64Image('image/png', 1);
+            ch.destroy();
+            return img;
         }
 
         async function gerarPdfHistorico() {
@@ -1234,10 +1259,23 @@
 
             const sem = j.desempenho_por_semestre || [];
             secao('Desempenho por semestre',
-                ['Período', 'Componentes', 'Aprovados', 'Reprovados', 'Matriculado', 'Média'],
+                ['Período', 'Comp.', 'Aprov.', 'Reprov.', 'Matric.', '% aprov.', '% reprov.', 'Média'],
                 sem.map(s => [s.periodo, s.componentes, s.aprovados, s.reprovados, s.em_curso,
+                s.pct_aprovacao != null ? s.pct_aprovacao + '%' : '—',
+                s.pct_reprovacao != null ? s.pct_reprovacao + '%' : '—',
                 s.media_semestre != null ? s.media_semestre : '—']),
                 [29, 78, 216]);
+
+            // Gráfico de desempenho por semestre (renderizado em canvas próprio)
+            try {
+                const img = _imagemGraficoHistorico(sem);
+                if (img && img.length > 2000) {
+                    const larg = 182, alt = 68;
+                    if (y + alt > 285) { doc.addPage(); y = 16; }
+                    doc.addImage(img, 'PNG', M, y, larg, alt);
+                    y += alt + 10;
+                }
+            } catch (e) { console.error('gráfico PDF:', e); }
 
             secao('Disciplinas aprovadas',
                 ['Código', 'Componente', 'Docente', 'Período', 'CH', 'Média'],
@@ -1266,7 +1304,11 @@
                 doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')} · Página ${i}/${tp}`, M, 290);
             }
 
-            doc.save(`avaliacao_${j.matricula || 'aluno'}.pdf`);
+            const slug = s => (s || '').normalize('NFD')
+                .replace(/[^\x00-\x7F]/g, '')
+                .replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').toLowerCase();
+            const partes = ['avaliacao', slug(j.aluno), j.matricula].filter(Boolean);
+            doc.save(`${partes.join('_') || 'avaliacao_aluno'}.pdf`);
         }
 
         async function iniciarProcessamento() {
