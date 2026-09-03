@@ -195,6 +195,9 @@ para **um** aluno, um resumo pronto para virar JSON de API:
     matriculadas, a refazer, a cursar) e a lista das disciplinas. A classificação
     é do currículo BSI/São Borja; disciplinas não reconhecidas caem em "Não
     classificadas". Casamento por nome normalizado (sem acento, sem preposições).
+    **Cada disciplina é contada uma única vez** — chave = nome normalizado (não
+    código, para colapsar equivalências), com o resultado mais avançado
+    (aprovada > matriculada > a cursar/reprovada).
   - **JSON** — retorno bruto da API com botão "Copiar JSON".
   Trocar de modo limpa o arquivo selecionado.
 
@@ -251,8 +254,9 @@ para **um** aluno, um resumo pronto para virar JSON de API:
 - **PDF consolidado por aluno**: dados do aluno, disciplinas, série de
   frequência e gráfico.
 - **PDF da avaliação individual** (histórico): cabeçalho, dados do aluno,
-  progresso do curso, desempenho por semestre e as tabelas de disciplinas
-  aprovadas / a cursar / reprovadas (com docente) — usa `jspdf-autotable`.
+  progresso do curso, desempenho por semestre (tabela + gráfico), **cobertura por
+  área temática (tabela-resumo + radar)** e as tabelas de disciplinas aprovadas /
+  a cursar / reprovadas (com docente) — usa `jspdf-autotable`.
 - Cabeçalho institucional com logo do IFFar (`iffar-horizontal.png`),
   convertido para base64 na geração.
 

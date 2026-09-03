@@ -1245,25 +1245,33 @@
             return null;
         }
 
-        // código -> { status, nome, jaReprovou }  (aprovada > cursando > a_cursar/reprovada)
-        function _statusPorCodigo(j) {
+        // Um resultado por disciplina (chave = nome normalizado, não código, para
+        // colapsar equivalências/variações). Prioridade: aprovada > matriculada >
+        // a cursar/reprovada — ou seja, o resultado mais avançado, que também é o
+        // "último" (não se fica pendente depois de aprovar).
+        function _statusPorDisciplina(j) {
             const prio = { aprovada: 4, cursando: 3, a_cursar: 1, reprovada: 1 };
             const m = {};
-            const set = (cod, nome, st) => {
-                if (!m[cod] || prio[st] > prio[m[cod].status]) m[cod] = { status: st, nome, jaReprovou: m[cod] && m[cod].jaReprovou };
+            const set = (nome, codigo, st) => {
+                const k = _normDisc(nome);
+                if (!k) return;
+                if (!m[k] || prio[st] > prio[m[k].status]) {
+                    m[k] = { status: st, nome, codigo, jaReprovou: m[k] ? m[k].jaReprovou : false };
+                }
             };
-            (j.disciplinas_aprovadas || []).forEach(d => set(d.codigo, d.componente, 'aprovada'));
-            (j.disciplinas_a_cursar || []).forEach(d => set(d.codigo, d.componente, d.matriculado_atualmente ? 'cursando' : 'a_cursar'));
+            (j.disciplinas_aprovadas || []).forEach(d => set(d.componente, d.codigo, 'aprovada'));
+            (j.disciplinas_a_cursar || []).forEach(d => set(d.componente, d.codigo, d.matriculado_atualmente ? 'cursando' : 'a_cursar'));
             (j.reprovacoes_detalhe || []).forEach(d => {
-                if (!m[d.codigo]) set(d.codigo, d.componente, 'reprovada');
-                if (m[d.codigo] && (m[d.codigo].status === 'a_cursar' || m[d.codigo].status === 'cursando'))
-                    m[d.codigo].jaReprovou = true;
+                const k = _normDisc(d.componente);
+                if (!k) return;
+                if (!m[k]) set(d.componente, d.codigo, 'reprovada');
+                if (m[k] && (m[k].status === 'a_cursar' || m[k].status === 'cursando')) m[k].jaReprovou = true;
             });
-            return m;
+            return Object.values(m);
         }
 
         function _agregarAreas(j) {
-            const statusMap = _statusPorCodigo(j);
+            const disciplinas = _statusPorDisciplina(j);
             const areas = {};
             const init = a => areas[a] || (areas[a] = {
                 area: a, rotulo: AREAS_LABEL_CURTO[a] || a, total: _totalPorArea[a] || 0,
@@ -1272,13 +1280,13 @@
             Object.keys(CLASSIFICACAO_AREAS).forEach(init);
             const outras = init('Não classificadas'); outras.total = 0;
 
-            for (const [cod, s] of Object.entries(statusMap)) {
+            for (const s of disciplinas) {
                 const areaNome = _areaDe(s.nome);
                 const b = areaNome ? init(areaNome) : outras;
                 if (!areaNome) b.total++;
                 if (s.jaReprovou && s.status === 'a_cursar') b.refazer++;
                 else b[s.status]++;
-                b.disciplinas.push({ codigo: cod, nome: s.nome, status: s.status, jaReprovou: !!s.jaReprovou });
+                b.disciplinas.push({ codigo: s.codigo, nome: s.nome, status: s.status, jaReprovou: !!s.jaReprovou });
             }
 
             const ordem = [...Object.keys(CLASSIFICACAO_AREAS), 'Não classificadas'];
@@ -1354,12 +1362,9 @@
             _renderGraficoAreas(areas);
         }
 
-        function _renderGraficoAreas(areas) {
-            const ctx = document.getElementById('grafico-areas');
-            if (!ctx) return;
-            if (graficoAreas) graficoAreas.destroy();
+        function _configGraficoAreas(areas, opts) {
             const comAlvo = areas.filter(a => a.area !== 'Não classificadas');
-            graficoAreas = new Chart(ctx.getContext('2d'), {
+            return {
                 type: 'radar',
                 data: {
                     labels: comAlvo.map(a => a.rotulo),
@@ -1376,12 +1381,31 @@
                         },
                     ],
                 },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
+                options: Object.assign({
                     scales: { r: { min: 0, max: 100, ticks: { stepSize: 25, callback: v => v + '%' }, pointLabels: { font: { size: 10 } } } },
                     plugins: { legend: { position: 'bottom' } },
-                },
-            });
+                }, opts || {}),
+            };
+        }
+
+        function _renderGraficoAreas(areas) {
+            const ctx = document.getElementById('grafico-areas');
+            if (!ctx) return;
+            if (graficoAreas) graficoAreas.destroy();
+            graficoAreas = new Chart(ctx.getContext('2d'),
+                _configGraficoAreas(areas, { responsive: true, maintainAspectRatio: false }));
+        }
+
+        // Radar num canvas próprio (tamanho fixo) só para o PDF
+        function _imagemGraficoAreas(areas) {
+            if (!areas || !areas.filter(a => a.area !== 'Não classificadas').length) return null;
+            const cv = document.createElement('canvas');
+            cv.width = 680; cv.height = 620;
+            const ch = new Chart(cv.getContext('2d'),
+                _configGraficoAreas(areas, { responsive: false, animation: false, devicePixelRatio: 2 }));
+            const img = ch.toBase64Image('image/png', 1);
+            ch.destroy();
+            return img;
         }
 
         async function gerarPdfHistorico() {
@@ -1474,6 +1498,32 @@
                     y += alt + 10;
                 }
             } catch (e) { console.error('gráfico PDF:', e); }
+
+            // Cobertura por área temática (resumo + radar)
+            const areas = _agregarAreas(j);
+            const areasComAlvo = areas.filter(a => a.area !== 'Não classificadas');
+            if (areasComAlvo.length) {
+                if (y > 235) { doc.addPage(); y = 16; }
+                doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+                doc.text('Cobertura por área temática', M, y); y += 3;
+                doc.autoTable({
+                    startY: y, styles: { fontSize: 8, cellPadding: 1.3 },
+                    headStyles: { fillColor: [22, 163, 74] },
+                    columnStyles: { 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' }, 5: { halign: 'center' }, 6: { halign: 'center' } },
+                    head: [['Área', 'Aprov.', 'Matric.', 'A refazer', 'A cursar', 'Total', '% aprov.']],
+                    body: areasComAlvo.map(a => [a.area, a.aprovada, a.cursando, a.refazer, a.a_cursar, a.total, a.pctAprov + '%']),
+                });
+                y = doc.lastAutoTable.finalY + 6;
+                try {
+                    const img = _imagemGraficoAreas(areas);
+                    if (img && img.length > 2000) {
+                        const w = 115, h = 105;
+                        if (y + h > 285) { doc.addPage(); y = 16; }
+                        doc.addImage(img, 'PNG', M, y, w, h);
+                        y += h + 10;
+                    }
+                } catch (e) { console.error('radar PDF:', e); }
+            }
 
             secao('Disciplinas aprovadas',
                 ['Código', 'Componente', 'Docente', 'Período', 'CH', 'Média'],
