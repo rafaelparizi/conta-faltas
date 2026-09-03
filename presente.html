@@ -957,8 +957,8 @@
             const linhas = itens.map(it => `<tr class="border-t border-slate-100">${
                 colunas.map(c => `<td class="px-3 py-2 ${c.cls || ''}">${c.get(it)}</td>`).join('')
             }</tr>`).join('');
-            return `<div class="overflow-x-auto"><table class="w-full text-sm border-collapse">
-                <thead class="bg-slate-50"><tr>${th}</tr></thead><tbody>${linhas}</tbody></table></div>`;
+            return `<div class="overflow-auto max-h-[460px]"><table class="w-full text-sm border-collapse">
+                <thead class="bg-slate-50 sticky top-0"><tr>${th}</tr></thead><tbody>${linhas}</tbody></table></div>`;
         }
 
         function _cardHist(titulo, badge, corpoHtml) {
@@ -1010,15 +1010,15 @@
                     { rot: 'Média', get: d => `<span class="font-semibold text-green-700">${_fmtNum(d.media)}</span>` },
                 ]));
 
-            // 3) A fazer
-            const cardFazer = _cardHist('Disciplinas a fazer', j.disciplinas_a_cursar.length, _tabelaDisciplinas(
+            // 3) A cursar
+            const cardCursar = _cardHist('Disciplinas a cursar', j.disciplinas_a_cursar.length, _tabelaDisciplinas(
                 j.disciplinas_a_cursar, [
                     { rot: 'Código', get: d => `<span class="font-mono text-xs">${d.codigo}</span>` },
                     { rot: 'Componente', get: d => d.componente, cls: 'font-medium text-slate-700' },
                     { rot: 'CH', get: d => _fmtNum(d.carga_horaria, 'h') },
                     {
                         rot: 'Situação', get: d => d.matriculado_atualmente
-                            ? '<span class="text-xs font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Em curso</span>'
+                            ? '<span class="text-xs font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Matriculado</span>'
                             : '<span class="text-xs text-slate-400">A cursar</span>'
                     },
                 ]));
@@ -1052,17 +1052,20 @@
                 </div>
                 <p class="text-xs text-slate-500 mt-3">
                     Concluída: <strong>${_fmtNum(ch.concluida, 'h')}</strong> ·
-                    Em curso agora: <strong>${_fmtNum(ch.em_curso, 'h')}</strong> ·
+                    Matriculado agora: <strong>${_fmtNum(ch.em_curso, 'h')}</strong> ·
                     Pendente (obrigatórias): <strong>${_fmtNum(ch.pendente, 'h')}</strong>
                 </p>
                 <p class="text-[0.7rem] text-slate-400 mt-1">${ch.obs || ''}</p>`);
 
-            // 6) Desempenho por semestre (gráfico)
+            // Desempenho por semestre (gráfico)
             const cardSemestre = _cardHist('Desempenho por semestre', null,
                 `<div class="h-[320px]"><canvas id="grafico-historico"></canvas></div>`);
 
-            document.getElementById('hpanel-visao').innerHTML =
-                cardDados + cardApr + cardFazer + cardRep + cardProgresso + cardSemestre;
+            document.getElementById('hpanel-visao').innerHTML = `
+                <div class="grid gap-5 lg:grid-cols-[3fr_2fr] items-start">${cardDados}${cardProgresso}</div>
+                ${cardSemestre}
+                <div class="grid gap-5 lg:grid-cols-2 items-start">${cardApr}${cardCursar}</div>
+                ${cardRep}`;
 
             _renderGraficoHistorico(j.desempenho_por_semestre || []);
         }

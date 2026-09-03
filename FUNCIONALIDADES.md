@@ -169,11 +169,13 @@ para **um** aluno, um resumo pronto para virar JSON de API:
 - **Avaliação aluno (individual)** — troca o rótulo do upload para "Selecionar
   histórico do aluno" e o botão para "Avaliar aluno". Envia o PDF do histórico
   para `POST /analyze-historico` e mostra o resultado em **duas abas**:
-  - **Visão geral** — cards reconstruindo o histórico do aluno: dados do aluno
-    (matrícula e ano de ingresso em destaque), disciplinas aprovadas, a fazer e
-    reprovadas (tabelas), progresso do curso (% de conclusão estimado + CH
-    faltante com barra) e desempenho por semestre (gráfico Chart.js: linha da
-    média + barras de aprovados/reprovados).
+  - **Visão geral** — cards reconstruindo o histórico do aluno, nesta ordem:
+    (1) **dados do aluno** (matrícula e ano de ingresso em destaque) ao lado do
+    (2) **progresso do curso** (% de conclusão estimado + CH faltante com barra);
+    (3) **desempenho por semestre** (gráfico Chart.js: linha da média + barras de
+    aprovados/reprovados); (4) **disciplinas aprovadas** e **a cursar** lado a
+    lado; (5) **disciplinas reprovadas** abaixo, em largura total. Disciplinas em
+    que o aluno está matriculado agora recebem o badge "Matriculado".
   - **JSON** — retorno bruto da API com botão "Copiar JSON".
   Trocar de modo limpa o arquivo selecionado.
 
