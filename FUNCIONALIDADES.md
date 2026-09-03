@@ -179,7 +179,10 @@ para **um** aluno, um resumo pronto para virar JSON de API:
     lado; (5) **disciplinas reprovadas** abaixo, em largura total. Cada card de
     disciplinas mostra o **docente** e tem **campo de busca** (filtra por código,
     componente ou docente, com contador "N de N"). Disciplinas em que o aluno
-    está matriculado agora recebem o badge "Matriculado".
+    está matriculado agora recebem o badge "Matriculado". Abaixo do card de
+    progresso há o botão **"Gerar relatório PDF"** (jsPDF + jspdf-autotable), que
+    monta um relatório com cabeçalho institucional, dados do aluno, progresso,
+    desempenho por semestre e as três tabelas de disciplinas (com docente).
   - **JSON** — retorno bruto da API com botão "Copiar JSON".
   Trocar de modo limpa o arquivo selecionado.
 
@@ -235,6 +238,9 @@ para **um** aluno, um resumo pronto para virar JSON de API:
 - PDF de frequência geral.
 - **PDF consolidado por aluno**: dados do aluno, disciplinas, série de
   frequência e gráfico.
+- **PDF da avaliação individual** (histórico): cabeçalho, dados do aluno,
+  progresso do curso, desempenho por semestre e as tabelas de disciplinas
+  aprovadas / a cursar / reprovadas (com docente) — usa `jspdf-autotable`.
 - Cabeçalho institucional com logo do IFFar (`iffar-horizontal.png`),
   convertido para base64 na geração.
 

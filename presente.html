@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 
     <style>
         .celula-falta {
@@ -1097,8 +1098,21 @@
             const cardSemestre = _cardHist('Desempenho por semestre', null,
                 `<div class="h-[320px]"><canvas id="grafico-historico"></canvas></div>`);
 
+            const botaoPdf = `
+                <div class="flex justify-end">
+                    <button onclick="gerarPdfHistorico()"
+                        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M12 10v6m0 0l-3-3m3 3l3-3M4 6a2 2 0 012-2h7l5 5v9a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
+                        </svg>
+                        Gerar relatório PDF
+                    </button>
+                </div>`;
+
             document.getElementById('hpanel-visao').innerHTML = `
                 <div class="grid gap-5 lg:grid-cols-[3fr_2fr] items-start">${cardDados}${cardProgresso}</div>
+                ${botaoPdf}
                 ${cardSemestre}
                 <div class="grid gap-5 lg:grid-cols-2 items-start">${cardApr}${cardCursar}</div>
                 ${cardRep}`;
@@ -1145,6 +1159,114 @@
                     plugins: { legend: { position: 'bottom' } },
                 },
             });
+        }
+
+        async function gerarPdfHistorico() {
+            const j = _historicoAtual;
+            if (!j) { alert('Avalie um histórico primeiro.'); return; }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const M = 14;
+            let y = 14;
+
+            try {
+                const logo = await carregarImagemComoBase64(document.getElementById('logo-iffar-footer'));
+                doc.addImage(logo, 'PNG', M, y, 38, 14);
+            } catch (e) { /* segue sem logo */ }
+
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+            doc.text('AVALIAÇÃO INDIVIDUAL DO ALUNO', M + 44, y + 6);
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(110);
+            doc.text('Presença.edu · reconstrução do histórico escolar (SIGAA)', M + 44, y + 11);
+            doc.setTextColor(0);
+            y += 22;
+
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+            doc.text(j.aluno || '—', M, y); y += 5;
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+            doc.text(doc.splitTextToSize(j.curso || '—', 182), M, y); y += 8;
+
+            const num = v => (v === null || v === undefined) ? '—' : String(v);
+            const idx = j.indices || {};
+            const ch = j.carga_horaria || {};
+
+            doc.autoTable({
+                startY: y, theme: 'plain', styles: { fontSize: 9, cellPadding: 1 },
+                columnStyles: { 0: { fontStyle: 'bold', cellWidth: 34 }, 2: { fontStyle: 'bold', cellWidth: 34 } },
+                body: [
+                    ['Matrícula', num(j.matricula), 'Ano de ingresso', num(j.periodo_ingresso)],
+                    ['Status', num(j.status_matricula), 'Período atual', j.periodo_atual != null ? j.periodo_atual + 'º' : '—'],
+                    ['Forma de ingresso', num(j.forma_ingresso), 'Prazo máximo', num(j.prazo_maximo)],
+                    ['MC', num(idx.MC), 'IRA', num(idx.IRA)],
+                ],
+            });
+            y = doc.lastAutoTable.finalY + 6;
+
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+            doc.text('Progresso do curso', M, y); y += 3;
+            doc.autoTable({
+                startY: y, styles: { fontSize: 9, halign: 'center' }, headStyles: { fillColor: [29, 78, 216] },
+                head: [['% conclusão (estim.)', 'CH concluída', 'CH matriculado', 'CH pendente']],
+                body: [[
+                    ch.pct_conclusao_estimado != null ? ch.pct_conclusao_estimado + '%' : '—',
+                    (ch.concluida || 0) + 'h', (ch.em_curso || 0) + 'h', (ch.pendente || 0) + 'h',
+                ]],
+            });
+            y = doc.lastAutoTable.finalY + 3;
+            doc.setFontSize(7); doc.setTextColor(120);
+            doc.text(doc.splitTextToSize(ch.obs || '', 182), M, y); doc.setTextColor(0);
+            y = doc.lastAutoTable.finalY + 10;
+
+            const secao = (titulo, head, body, headColor) => {
+                doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+                doc.text(`${titulo} (${body.length})`, M, y); y += 3;
+                if (body.length === 0) {
+                    doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(130);
+                    doc.text('Nenhuma.', M, y + 2); doc.setTextColor(0); y += 10; return;
+                }
+                doc.autoTable({
+                    startY: y, styles: { fontSize: 8, cellPadding: 1.3, overflow: 'linebreak' },
+                    headStyles: { fillColor: headColor }, head: [head], body,
+                });
+                y = doc.lastAutoTable.finalY + 10;
+            };
+
+            const sem = j.desempenho_por_semestre || [];
+            secao('Desempenho por semestre',
+                ['Período', 'Componentes', 'Aprovados', 'Reprovados', 'Matriculado', 'Média'],
+                sem.map(s => [s.periodo, s.componentes, s.aprovados, s.reprovados, s.em_curso,
+                s.media_semestre != null ? s.media_semestre : '—']),
+                [29, 78, 216]);
+
+            secao('Disciplinas aprovadas',
+                ['Código', 'Componente', 'Docente', 'Período', 'CH', 'Média'],
+                j.disciplinas_aprovadas.map(d => [d.codigo, d.componente, d.docente || '—',
+                d.periodo || '—', num(d.carga_horaria) + (d.carga_horaria ? 'h' : ''), num(d.media)]),
+                [22, 163, 74]);
+
+            secao('Disciplinas a cursar',
+                ['Código', 'Componente', 'Docente', 'CH', 'Situação'],
+                j.disciplinas_a_cursar.map(d => [d.codigo, d.componente, d.docente || '—',
+                num(d.carga_horaria) + (d.carga_horaria ? 'h' : ''),
+                d.matriculado_atualmente ? 'Matriculado' : 'A cursar']),
+                [100, 116, 139]);
+
+            const rot = { REP: 'Reprovado por média', REPF: 'Reprovado por falta', REPMF: 'Média e falta' };
+            secao('Disciplinas reprovadas',
+                ['Código', 'Componente', 'Docente', 'Período', 'Motivo', 'Média', 'Freq.'],
+                j.reprovacoes_detalhe.map(d => [d.codigo, d.componente, d.docente || '—', d.periodo || '—',
+                rot[d.situacao] || d.situacao, num(d.media), d.freq_pct != null ? d.freq_pct + '%' : '—']),
+                [220, 38, 38]);
+
+            const tp = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= tp; i++) {
+                doc.setPage(i);
+                doc.setFontSize(7); doc.setTextColor(150);
+                doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')} · Página ${i}/${tp}`, M, 290);
+            }
+
+            doc.save(`avaliacao_${j.matricula || 'aluno'}.pdf`);
         }
 
         async function iniciarProcessamento() {
