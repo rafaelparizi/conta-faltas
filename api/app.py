@@ -3,6 +3,8 @@ import re
 import json
 import unicodedata
 import tempfile
+from dataclasses import dataclass, field
+from typing import Optional
 import pandas as pd
 import pdfplumber
 from flask import Flask, request, jsonify
@@ -173,31 +175,53 @@ def extrair_metadados_pdf(caminho_pdf):
     return metadados
 
 
+# Carga horária semestral → períodos por dia de aula (sugestão inicial).
+#   Superior:          36h → 2 · 72h → 4
+#   Técnico/Integrado: 40h → 1 · 80h → 2 · 120h → 3
+MAPA_CH_PERIODOS = {36: 2, 72: 4, 40: 1, 80: 2, 120: 3}
+
+# Níveis por carga horária (apenas rótulo/sugestão; não altera o cálculo).
+CH_NIVEL_SUPERIOR = {36, 72}
+CH_NIVEL_INTEGRADO = {40, 80, 120}
+
+
+def _ch_int(carga_horaria_str):
+    try:
+        return int(str(carga_horaria_str).strip())
+    except (ValueError, TypeError):
+        return 0
+
+
+def nivel_sugerido_por_ch(carga_horaria_str):
+    ch = _ch_int(carga_horaria_str)
+    if ch in CH_NIVEL_INTEGRADO:
+        return "integrado"
+    if ch in CH_NIVEL_SUPERIOR:
+        return "superior"
+    return ""
+
+
+def peso_sugerido_por_ch(carga_horaria_str):
+    """Períodos por dia sugeridos pela CH, ou None quando a CH não é reconhecida."""
+    return MAPA_CH_PERIODOS.get(_ch_int(carga_horaria_str))
+
+
 def inferir_peso_disciplina(carga_horaria_str, pesos_por_codigo=None, codigo=None):
     """
-    Determina o número de períodos por aula da disciplina.
+    Determina o número de períodos por dia de aula da disciplina.
 
     Regras:
       - Se o frontend enviou um peso explícito para este código → usa ele
-      - CH 36h → sempre 2 períodos (automático, sem confirmação)
-      - CH 72h → padrão 4, mas deve ser confirmado pelo frontend
-      - Outros  → fallback 2
+      - Senão, usa o mapa CH → períodos (MAPA_CH_PERIODOS)
+      - CH não reconhecida → fallback 2
     """
-    try:
-        ch = int(str(carga_horaria_str).strip())
-    except (ValueError, TypeError):
-        ch = 0
-
     if pesos_por_codigo and codigo and codigo in pesos_por_codigo:
-        return int(pesos_por_codigo[codigo])
+        try:
+            return int(pesos_por_codigo[codigo])
+        except (ValueError, TypeError):
+            pass
 
-    if ch == 36:
-        return 2
-
-    if ch == 72:
-        return 4
-
-    return 2
+    return peso_sugerido_por_ch(carga_horaria_str) or 2
 
 
 # =========================================================
@@ -373,10 +397,10 @@ def analisar_frequencia_por_mes(caminho_pdf, peso_disciplina=None):
                         continue
 
                     if valor == "*":
-                        aulas_mes += peso_disciplina        # presença: conta os 4 períodos
+                        aulas_mes += peso_disciplina        # presença: conta os períodos do dia
                     elif valor.isdigit() and int(valor) > 0:
-                        aulas_mes += peso_disciplina        # ✅ falta: também conta os 4 períodos da noite
-                        faltas_mes += peso_disciplina       # ✅ falta: registra os 4 períodos, não o valor literal
+                        aulas_mes += peso_disciplina        # falta: conta os períodos do dia como aula
+                        faltas_mes += peso_disciplina       # falta: registra os períodos do dia, não o valor literal
                     elif valor == "J":
                         aulas_mes += peso_disciplina        # justificado: conta como presença
 
@@ -424,6 +448,267 @@ def organizar_colunas_frequencia(df_final):
 
 
 # =========================================================
+# PARSER DE HISTÓRICO ESCOLAR (SIGAA / IFFar) — status individual do aluno
+#
+# Portado de teste_parser/parser.py (ver teste_parser/DOCUMENTACAO.md).
+# Lê o PDF de "Histórico Escolar" e devolve o status atualizado de UM aluno:
+# disciplinas aprovadas, a cursar, reprovações por falta/média, índices, etc.
+#
+# Decisões de projeto importantes:
+#  - O nome do aluno na página 1 vem com cada caractere duplicado (artefato de
+#    renderização do campo em negrito). `_dedupe_bold_artifact` só corrige quando
+#    o padrão bate em TODOS os tokens, para não corromper letras dobradas legítimas.
+#  - A tabela de componentes tem duas colunas de nota ("Nota Mín" e "Média") que
+#    divergem; a semântica de "Nota Mín" é incerta. A classificação de
+#    aprovação/reprovação usa EXCLUSIVAMENTE a coluna "Situação".
+#  - Percentuais de reprovação usam como base só componentes avaliados nesta
+#    oferta (APR+REP+REPF+REPMF). REPMF conta nos dois percentuais ao mesmo tempo.
+# =========================================================
+
+SITUACAO_LABELS = {
+    "APR": "Aprovado",
+    "REP": "Reprovado por média",
+    "REPF": "Reprovado por falta",
+    "REPMF": "Reprovado por média e falta",
+    "MATR": "Matriculado (em curso)",
+    "CANC": "Cancelado",
+    "DISP": "Dispensado",
+    "CUMP": "Cumpriu (componente equivalente)",
+    "TRANC": "Trancado",
+}
+
+HIST_APROVEITADAS = {"APR", "DISP", "CUMP"}
+HIST_REPROVACOES = {"REP", "REPF", "REPMF"}
+HIST_EM_CURSO = {"MATR"}
+HIST_AVALIADOS = {"APR", "REP", "REPF", "REPMF"}
+
+
+def _dedupe_bold_artifact(s):
+    """Remove duplicação de caracteres da Pág.1 (bug de negrito), só quando o
+    padrão se confirma em TODOS os tokens (separados por espaço)."""
+    tokens = s.split(" ")
+    for t in tokens:
+        if len(t) == 0:
+            continue
+        if len(t) % 2 != 0:
+            return s
+        if any(t[i] != t[i + 1] for i in range(0, len(t), 2)):
+            return s
+    return " ".join(t[0::2] for t in tokens)
+
+
+@dataclass
+class Componente:
+    periodo: str
+    codigo: str
+    nome: str
+    docentes: str
+    carga_horaria: Optional[int]
+    freq_pct: Optional[float]
+    nota_bruta: Optional[float]   # coluna "Nota Mín" no PDF — semântica incerta
+    media: Optional[float]        # coluna "Média"
+    situacao: str
+
+
+@dataclass
+class Pendente:
+    codigo: str
+    nome: str
+    matriculado_atualmente: bool
+    carga_horaria: Optional[int]
+
+
+@dataclass
+class HistoricoAluno:
+    nome: str
+    matricula: str
+    curso: str
+    status_matricula: str
+    periodo_ingresso: str
+    forma_ingresso: str
+    periodo_atual: Optional[int]
+    prazo_padrao: Optional[str]
+    prazo_maximo: Optional[str]
+    mc: Optional[float]
+    ira: Optional[float]
+    componentes: list = field(default_factory=list)
+    pendentes: list = field(default_factory=list)
+
+
+def _hist_to_float(s):
+    if s is None:
+        return None
+    s = str(s).strip().replace(",", ".")
+    if s in ("", "--", "-"):
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _hist_to_int(s):
+    if s is None:
+        return None
+    m = re.search(r"\d+", str(s).strip())
+    return int(m.group()) if m else None
+
+
+def _parse_historico_pagina1(texto):
+    def find(pattern, default=None, flags=re.MULTILINE):
+        m = re.search(pattern, texto, flags)
+        return m.group(1).strip() if m else default
+
+    nome_raw = find(r"Nome:\s*(.+?)\s*Matrícula:")
+    nome = _dedupe_bold_artifact(nome_raw) if nome_raw else None
+
+    prazo_padrao = prazo_maximo = None
+    m = re.search(r"Máximo\)\s*:\s*([\d.]+)\s*/\s*([\d.]+)", texto)
+    if m:
+        prazo_padrao, prazo_maximo = m.group(1), m.group(2)
+
+    mc = ira = None
+    m = re.search(r"MC:\s*([\d.]+)\s*IRA:\s*([\d.]+)", texto)
+    if m:
+        mc, ira = _hist_to_float(m.group(1)), _hist_to_float(m.group(2))
+
+    return dict(
+        nome=nome,
+        matricula=find(r"Matrícula:\s*(\d+)"),
+        curso=find(r"^Curso:\s*(.+)$"),
+        status_matricula=find(r"^Status:\s*(\S+)"),
+        periodo_ingresso=find(r"Ano / Período Letivo Inicial:\s*([\d.]+)"),
+        forma_ingresso=find(r"Forma de Ingresso:\s*(.+)$"),
+        periodo_atual=_hist_to_int(find(r"Período Letivo Atual:\s*(\d+)")),
+        prazo_padrao=prazo_padrao, prazo_maximo=prazo_maximo, mc=mc, ira=ira,
+    )
+
+
+def _parse_historico_componentes(rows):
+    out = []
+    for row in rows:
+        if len(row) < 11:
+            continue
+        periodo, _marc, codigo, nome_docente, _hora, ch, _turma, freq, nota, media, situ = row[:11]
+        if not codigo or not situ:
+            continue
+        out.append(Componente(
+            periodo=(periodo or "").strip(),
+            codigo=codigo.strip(),
+            nome=(nome_docente or "").split("\n")[0].strip(),
+            docentes="",
+            carga_horaria=_hist_to_int(ch),
+            freq_pct=_hist_to_float(freq),
+            nota_bruta=_hist_to_float(nota),
+            media=_hist_to_float(media),
+            situacao=(situ or "").strip(),
+        ))
+    return out
+
+
+def _parse_historico_pendentes(rows):
+    out = []
+    for row in rows[2:]:  # pula linha-título e cabeçalho
+        if len(row) < 3 or not row[0]:
+            continue
+        codigo, nome_ch, ch = row[0], row[1] or "", row[2]
+        out.append(Pendente(
+            codigo=codigo.strip(),
+            nome=nome_ch.replace("Matriculado", "").strip(),
+            matriculado_atualmente="Matriculado" in nome_ch,
+            carga_horaria=_hist_to_int(ch),
+        ))
+    return out
+
+
+def parse_historico(pdf_path):
+    with pdfplumber.open(pdf_path) as pdf:
+        dados = _parse_historico_pagina1(pdf.pages[0].extract_text() or "")
+
+        componentes, pendentes = [], []
+        for page in pdf.pages:
+            for table in page.extract_tables():
+                if not table or not table[0]:
+                    continue
+                header0 = str(table[0][0] or "")
+                if len(table[0]) == 11:
+                    componentes += _parse_historico_componentes(table[1:])
+                elif header0.startswith("Componentes Curriculares Obrigatórios Pendentes"):
+                    pendentes += _parse_historico_pendentes(table)
+
+    return HistoricoAluno(componentes=componentes, pendentes=pendentes, **dados)
+
+
+def resumo_status(h):
+    contagem = {}
+    for c in h.componentes:
+        contagem[c.situacao] = contagem.get(c.situacao, 0) + 1
+
+    aprovados = sum(v for k, v in contagem.items() if k in HIST_APROVEITADAS)
+    reprovados_total = sum(v for k, v in contagem.items() if k in HIST_REPROVACOES)
+    em_curso = sum(v for k, v in contagem.items() if k in HIST_EM_CURSO)
+
+    base_avaliacao = sum(contagem.get(k, 0) for k in HIST_AVALIADOS)
+    n_repf = contagem.get("REPF", 0)
+    n_rep = contagem.get("REP", 0)
+    n_repmf = contagem.get("REPMF", 0)
+
+    def pct(numerador):
+        return round(numerador / base_avaliacao * 100, 1) if base_avaliacao else None
+
+    return {
+        "aluno": h.nome,
+        "matricula": h.matricula,
+        "curso": h.curso,
+        "status_matricula": h.status_matricula,
+        "periodo_atual": h.periodo_atual,
+        "prazo_maximo": h.prazo_maximo,
+        "indices": {"MC": h.mc, "IRA": h.ira},
+        "componentes_por_situacao": {
+            SITUACAO_LABELS.get(k, k): v for k, v in sorted(contagem.items())
+        },
+        "resumo": {
+            "total_componentes_no_historico": len(h.componentes),
+            "aprovados_ou_equivalente": aprovados,
+            "reprovados_total": reprovados_total,
+            "reprovados_por_falta": n_repf,
+            "reprovados_por_media": n_rep,
+            "reprovados_por_media_e_falta": n_repmf,
+            "em_curso_atualmente": em_curso,
+            "pendentes_curriculo": len(h.pendentes),
+        },
+        "percentuais": {
+            "base_calculo": base_avaliacao,
+            "criterio_base": (
+                "componentes com resultado avaliado nesta oferta (APR+REP+REPF+REPMF); "
+                "exclui dispensas/equivalências (DISP/CUMP), em curso (MATR) e "
+                "cancelamentos/trancamentos (CANC/TRANC)"
+            ),
+            "reprovacao_por_falta_pct": pct(n_repf + n_repmf),
+            "reprovacao_por_media_pct": pct(n_rep + n_repmf),
+            "obs_repmf": (
+                "REPMF (reprovado por média e por falta) é contado nos dois percentuais "
+                "acima ao mesmo tempo, por isso a soma pode ultrapassar o total de reprovações."
+            ),
+        },
+        "disciplinas_aprovadas": [
+            {"codigo": c.codigo, "componente": c.nome, "periodo": c.periodo, "media": c.media}
+            for c in h.componentes if c.situacao == "APR"
+        ],
+        "disciplinas_a_cursar": [
+            {"codigo": p.codigo, "componente": p.nome,
+             "carga_horaria": p.carga_horaria, "matriculado_atualmente": p.matriculado_atualmente}
+            for p in h.pendentes
+        ],
+        "reprovacoes_detalhe": [
+            {"codigo": c.codigo, "componente": c.nome, "periodo": c.periodo,
+             "media": c.media, "situacao": c.situacao}
+            for c in h.componentes if c.situacao in HIST_REPROVACOES
+        ],
+    }
+
+
+# =========================================================
 # ROTAS
 # =========================================================
 
@@ -431,7 +716,7 @@ def organizar_colunas_frequencia(df_final):
 def index():
     return jsonify({
         "status": "ok",
-        "message": "API v5.0 - Confirmação de períodos por disciplina."
+        "message": "API v5.1 - Nível e períodos por dia configuráveis por disciplina."
     })
 
 
@@ -477,10 +762,7 @@ def check_disciplines():
                 vistos.add(codigo)
 
                 ch_str = meta.get("Carga Horária", "0")
-                try:
-                    ch = int(ch_str)
-                except ValueError:
-                    ch = 0
+                ch = _ch_int(ch_str)
 
                 resultado.append({
                     "arquivo": f.filename,
@@ -489,10 +771,13 @@ def check_disciplines():
                     "carga_horaria": ch_str,
                     "docente": meta["Docente"],
                     "ano_semestre": meta["Ano/Semestre"],
-                    # True = frontend deve perguntar ao usuário
-                    "requer_confirmacao": ch == 72,
-                    # Sugestão padrão: 36h → 2 períodos, 72h → 4 períodos
-                    "peso_sugerido": 2 if ch == 36 else 4
+                    # O frontend sempre exibe a tela de configuração; este campo
+                    # apenas sinaliza CH ambígua (pode ser distribuída em >1 dia).
+                    "requer_confirmacao": ch in (72, 80, 120),
+                    # Sugestão inicial de períodos/dia (None se CH desconhecida).
+                    "peso_sugerido": peso_sugerido_por_ch(ch_str),
+                    # "integrado" | "superior" | "" (apenas rótulo/sugestão)
+                    "nivel_sugerido": nivel_sugerido_por_ch(ch_str),
                 })
 
             except Exception as e:
@@ -506,6 +791,7 @@ def check_disciplines():
                     "ano_semestre": "",
                     "requer_confirmacao": False,
                     "peso_sugerido": 2,
+                    "nivel_sugerido": "",
                     "erro": str(e)
                 })
 
@@ -627,6 +913,34 @@ def analyze_frequency():
         return jsonify(df_final.fillna("").to_dict(orient="records"))
 
     return jsonify([])
+
+
+@app.route("/analyze-historico", methods=["POST", "OPTIONS"])
+def analyze_historico():
+    """
+    Avaliação individual do aluno a partir do PDF de Histórico Escolar (SIGAA).
+
+    Parâmetros form-data:
+      - arquivo : um único PDF de "Histórico Escolar"
+
+    Retorna o dicionário de `resumo_status` (status atualizado do aluno).
+    """
+    if request.method == "OPTIONS":
+        return "", 200
+
+    f = request.files.get("arquivo") or (request.files.getlist("arquivos") or [None])[0]
+    if not f or f.filename == "":
+        return jsonify({"erro": "Nenhum arquivo enviado."}), 400
+
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, secure_filename(f.filename))
+        f.save(path)
+        try:
+            historico = parse_historico(path)
+            return jsonify(resumo_status(historico))
+        except Exception as e:
+            print(f"Erro ao processar histórico {f.filename}: {e}")
+            return jsonify({"erro": f"Não foi possível ler o histórico: {e}"}), 422
 
 
 if __name__ == "__main__":

@@ -3,4 +3,3 @@ flask-cors
 pandas
 pdfplumber
 werkzeug
-pdfplumber

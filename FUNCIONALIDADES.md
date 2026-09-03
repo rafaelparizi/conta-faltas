@@ -70,27 +70,61 @@ navegador.
   - normalização de acentos para comparação (`sem_acento`);
   - casos em que o rótulo "Coordenador de Curso" é dividido em várias linhas.
 
-### Inferência de peso da disciplina (períodos por aula)
-- `36h` → 2 períodos (automático);
-- `72h` → 4 períodos (sugestão, exige confirmação do usuário);
-- outros → fallback de 2 períodos;
-- o front-end pode enviar um mapa explícito `código → períodos` que tem
-  prioridade sobre a inferência.
+### Inferência de peso da disciplina (períodos por dia de aula)
+O "peso" é o número de períodos de cada dia de aula (cada coluna do diário) e é
+o que transforma faltas em porcentagem: `% = (aulas − faltas) / aulas`.
+
+Sugestão inicial pela carga horária semestral (`MAPA_CH_PERIODOS`):
+
+| Nível | CH | períodos/dia |
+|---|---|---|
+| Superior | `36h` / `72h` | 2 / 4 |
+| Técnico/Integrado | `40h` / `80h` / `120h` | 1 / 2 / 3 |
+| — | outra CH | fallback 2 |
+
+- O **nível** (`integrado` / `superior`) é apenas rótulo/sugestão — não altera o
+  cálculo. `nivel_sugerido_por_ch` deriva pelo mesmo conjunto de CHs.
+- O front-end **sempre** exibe a tela de configuração e envia um mapa explícito
+  `código → períodos` (`pesos`) que tem prioridade sobre a inferência. O usuário
+  pode ajustar quando a disciplina tem aula em mais de um dia por semana.
 
 ### Endpoints
 
 | Método/Rota | Função |
 |---|---|
 | `GET /` | Health-check da API |
-| `POST /check-disciplines` | **Etapa 1** — pré-análise: retorna metadados de cada PDF, deduplica disciplinas por código e marca `requer_confirmacao` quando a carga horária é ambígua (72h) |
+| `POST /check-disciplines` | **Etapa 1** — pré-análise: retorna metadados de cada PDF (deduplicados por código) com `peso_sugerido` e `nivel_sugerido` pela CH; `requer_confirmacao` sinaliza CH que pode ser distribuída em mais de um dia (72/80/120h) |
 | `POST /analyze` | **Etapa 2A** — análise de evasão de um mês específico: identifica alunos com faltas consecutivas no fim do mês, soma os períodos reais faltados e agrega o resultado por aluno/disciplina |
 | `POST /analyze-frequency` | **Etapa 2B** — análise completa de frequência: percentual de presença por mês e geral, total de aulas e de dias faltados por aluno |
+| `POST /analyze-historico` | **Avaliação individual** — recebe um PDF de Histórico Escolar (campo `arquivo`) e devolve o status atualizado de um aluno (ver abaixo) |
+
+### Parser de Histórico Escolar (avaliação individual do aluno)
+Portado de `teste_parser/parser.py` (documentação completa em
+`teste_parser/DOCUMENTACAO.md`). Lê o PDF de "Histórico Escolar" do SIGAA e monta,
+para **um** aluno, um resumo pronto para virar JSON de API:
+
+- **Página 1** (texto): nome, matrícula, curso, status, período atual, prazo
+  máximo, MC e IRA. O nome vem com caracteres duplicados por artefato de negrito
+  do PDF — corrigido por `_dedupe_bold_artifact` só quando o padrão bate em todos
+  os tokens (não corrompe letras dobradas legítimas).
+- **Tabelas** (páginas 2+): componentes cursados/cursando (11 colunas, parse
+  posicional) e a lista de obrigatórias pendentes (pode atravessar a quebra de
+  página; os pedaços são somados).
+- Classificação de aprovação/reprovação usa **exclusivamente a coluna
+  "Situação"** (`APR`, `REP`, `REPF`, `REPMF`, `MATR`, `DISP`, `CUMP`, `CANC`,
+  `TRANC`) — nunca a nota.
+- Retorno: `componentes_por_situacao`, `resumo` (aprovados, reprovados por
+  falta/média, em curso, pendentes), `percentuais` (reprovação por falta/média
+  sobre a base de avaliados nesta oferta; REPMF conta nos dois), e as listas
+  `disciplinas_aprovadas`, `disciplinas_a_cursar`, `reprovacoes_detalhe`.
+- Funções: `parse_historico(pdf)` → `HistoricoAluno`; `resumo_status(h)` → `dict`.
+  Validado contra os 2 históricos de teste (saída idêntica ao parser de origem).
 
 ### Regras de contagem
 - Marcador `J` (falta justificada) conta como **presença**.
-- Faltas contam o valor real em períodos (2 ou 4), não o número literal da
-  célula.
-- Presença (`*`) e falta contam a carga de períodos da aula (à noite, 4).
+- Cada dia de aula (coluna) vale `peso_disciplina` períodos, tanto para presença
+  (`*`) quanto para falta — não se usa o número literal da célula.
+- Faltas registram `peso_disciplina` períodos por dia faltado.
 - Colunas são mapeadas para o mês correto mesmo com cabeçalhos verticais.
 - Upload de **múltiplos PDFs** processados em lote; disciplinas repetidas são
   deduplicadas.
@@ -117,10 +151,21 @@ navegador.
      paginação.
 - Responsivo: em telas estreitas a barra lateral vira um bloco no topo.
 
+### Modos (navegação da barra lateral)
+- **Frequência geral** / **Busca por mês** — análise dos diários de classe
+  (comportamento descrito abaixo).
+- **Avaliação aluno (individual)** — troca o rótulo do upload para "Selecionar
+  histórico do aluno" e o botão para "Avaliar aluno". Envia o PDF do histórico
+  para `POST /analyze-historico` e, **por ora, apenas exibe o JSON retornado**
+  (com botão "Copiar JSON"); a visualização formatada virá depois. Trocar de modo
+  limpa o arquivo selecionado.
+
 ### Fluxo de uso
 1. Upload múltiplo de PDFs (`.pdf`) do diário SIGAA pela barra lateral.
-2. Se houver disciplina de 72h, abre **modal de confirmação de períodos**
-   (2 ou 4 por aula) por código de disciplina.
+2. Abre a **tela de configuração de disciplinas** listando todas as disciplinas:
+   por disciplina, escolhe-se o **nível** (Integrado / Superior) e os **períodos
+   por dia de aula** (1 a 4), pré-preenchidos pela sugestão da carga horária.
+   Trocar o nível re-sugere os períodos/dia.
 3. Processa e exibe os resultados; a navegação da barra lateral alterna entre as
    duas análises ("Frequência geral" e "Busca por mês") e as abas de conteúdo
    alternam entre gráfico e planilha.
@@ -143,7 +188,8 @@ navegador.
 - Total de alunos.
 - Frequência média.
 - Número de alertas de evasão.
-- Card com resumo por disciplina (quantidade e filtro rápido), acima da tabela.
+- Card com resumo por disciplina (quantidade, badge de nível e filtro rápido),
+  acima da tabela.
 
 ### Gráficos (Chart.js)
 - **Gráfico individual do aluno**: série temporal de % de presença por mês, com
