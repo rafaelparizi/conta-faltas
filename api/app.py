@@ -639,6 +639,40 @@ def parse_historico(pdf_path):
     return HistoricoAluno(componentes=componentes, pendentes=pendentes, **dados)
 
 
+def _ordenar_periodo(p):
+    """Chave de ordenação para períodos "AAAA.S" (ex.: "2026.1")."""
+    m = re.match(r"(\d{4})\.(\d)", str(p or ""))
+    return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
+
+
+def _desempenho_por_semestre(componentes):
+    por = {}
+    for c in componentes:
+        p = (c.periodo or "").strip()
+        if not p:
+            continue
+        d = por.setdefault(p, {
+            "periodo": p, "componentes": 0, "aprovados": 0,
+            "reprovados": 0, "em_curso": 0, "_medias": [],
+        })
+        d["componentes"] += 1
+        if c.situacao == "APR":
+            d["aprovados"] += 1
+        elif c.situacao in HIST_REPROVACOES:
+            d["reprovados"] += 1
+        elif c.situacao == "MATR":
+            d["em_curso"] += 1
+        if c.media is not None and c.situacao in HIST_AVALIADOS:
+            d["_medias"].append(c.media)
+
+    saida = []
+    for d in sorted(por.values(), key=lambda x: _ordenar_periodo(x["periodo"])):
+        medias = d.pop("_medias")
+        d["media_semestre"] = round(sum(medias) / len(medias), 2) if medias else None
+        saida.append(d)
+    return saida
+
+
 def resumo_status(h):
     contagem = {}
     for c in h.componentes:
@@ -656,12 +690,24 @@ def resumo_status(h):
     def pct(numerador):
         return round(numerador / base_avaliacao * 100, 1) if base_avaliacao else None
 
+    # Carga horária: concluída (APR/DISP/CUMP), em curso (MATR) e pendente
+    # (obrigatórias que faltam). % de conclusão é estimado por CH sobre
+    # (concluída + pendente obrigatória).
+    ch_concluida = sum(c.carga_horaria or 0 for c in h.componentes if c.situacao in HIST_APROVEITADAS)
+    ch_em_curso = sum(c.carga_horaria or 0 for c in h.componentes if c.situacao == "MATR")
+    ch_pendente = sum(p.carga_horaria or 0 for p in h.pendentes)
+    base_ch = ch_concluida + ch_pendente
+    pct_conclusao = round(ch_concluida / base_ch * 100, 1) if base_ch else None
+
     return {
         "aluno": h.nome,
         "matricula": h.matricula,
         "curso": h.curso,
         "status_matricula": h.status_matricula,
+        "periodo_ingresso": h.periodo_ingresso,
+        "forma_ingresso": h.forma_ingresso,
         "periodo_atual": h.periodo_atual,
+        "prazo_padrao": h.prazo_padrao,
         "prazo_maximo": h.prazo_maximo,
         "indices": {"MC": h.mc, "IRA": h.ira},
         "componentes_por_situacao": {
@@ -676,6 +722,16 @@ def resumo_status(h):
             "reprovados_por_media_e_falta": n_repmf,
             "em_curso_atualmente": em_curso,
             "pendentes_curriculo": len(h.pendentes),
+        },
+        "carga_horaria": {
+            "concluida": ch_concluida,
+            "em_curso": ch_em_curso,
+            "pendente": ch_pendente,
+            "pct_conclusao_estimado": pct_conclusao,
+            "obs": (
+                "estimativa por CH: concluída ÷ (concluída + pendente obrigatória); "
+                "não usa a CH total do currículo (não extraída do PDF)"
+            ),
         },
         "percentuais": {
             "base_calculo": base_avaliacao,
@@ -692,7 +748,8 @@ def resumo_status(h):
             ),
         },
         "disciplinas_aprovadas": [
-            {"codigo": c.codigo, "componente": c.nome, "periodo": c.periodo, "media": c.media}
+            {"codigo": c.codigo, "componente": c.nome, "periodo": c.periodo,
+             "carga_horaria": c.carga_horaria, "media": c.media}
             for c in h.componentes if c.situacao == "APR"
         ],
         "disciplinas_a_cursar": [
@@ -702,9 +759,11 @@ def resumo_status(h):
         ],
         "reprovacoes_detalhe": [
             {"codigo": c.codigo, "componente": c.nome, "periodo": c.periodo,
-             "media": c.media, "situacao": c.situacao}
+             "carga_horaria": c.carga_horaria, "media": c.media,
+             "freq_pct": c.freq_pct, "situacao": c.situacao}
             for c in h.componentes if c.situacao in HIST_REPROVACOES
         ],
+        "desempenho_por_semestre": _desempenho_por_semestre(h.componentes),
     }
 
 

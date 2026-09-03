@@ -113,12 +113,24 @@ para **um** aluno, um resumo pronto para virar JSON de API:
 - Classificação de aprovação/reprovação usa **exclusivamente a coluna
   "Situação"** (`APR`, `REP`, `REPF`, `REPMF`, `MATR`, `DISP`, `CUMP`, `CANC`,
   `TRANC`) — nunca a nota.
-- Retorno: `componentes_por_situacao`, `resumo` (aprovados, reprovados por
-  falta/média, em curso, pendentes), `percentuais` (reprovação por falta/média
-  sobre a base de avaliados nesta oferta; REPMF conta nos dois), e as listas
-  `disciplinas_aprovadas`, `disciplinas_a_cursar`, `reprovacoes_detalhe`.
+- Retorno de `resumo_status`:
+  - identificação: `aluno`, `matricula`, `curso`, `status_matricula`,
+    `periodo_ingresso`, `forma_ingresso`, `periodo_atual`, `prazo_padrao`,
+    `prazo_maximo`, `indices` (MC, IRA);
+  - `componentes_por_situacao`, `resumo` (aprovados, reprovados por falta/média,
+    em curso, pendentes);
+  - `carga_horaria`: `concluida` / `em_curso` / `pendente` (soma da CH das
+    obrigatórias pendentes) e `pct_conclusao_estimado` = concluída ÷ (concluída +
+    pendente). **Estimativa** — a CH total do currículo não é extraída do PDF;
+  - `percentuais` (reprovação por falta/média sobre a base de avaliados nesta
+    oferta; REPMF conta nos dois);
+  - listas `disciplinas_aprovadas` (com `carga_horaria` e `media`),
+    `disciplinas_a_cursar` (com `matriculado_atualmente`), `reprovacoes_detalhe`
+    (com `carga_horaria`, `media`, `freq_pct`, `situacao`);
+  - `desempenho_por_semestre`: por período letivo, contagem de componentes /
+    aprovados / reprovados / em curso e `media_semestre` (média dos avaliados).
 - Funções: `parse_historico(pdf)` → `HistoricoAluno`; `resumo_status(h)` → `dict`.
-  Validado contra os 2 históricos de teste (saída idêntica ao parser de origem).
+  Validado contra os 2 históricos de teste.
 
 ### Regras de contagem
 - Marcador `J` (falta justificada) conta como **presença**.
@@ -156,9 +168,14 @@ para **um** aluno, um resumo pronto para virar JSON de API:
   (comportamento descrito abaixo).
 - **Avaliação aluno (individual)** — troca o rótulo do upload para "Selecionar
   histórico do aluno" e o botão para "Avaliar aluno". Envia o PDF do histórico
-  para `POST /analyze-historico` e, **por ora, apenas exibe o JSON retornado**
-  (com botão "Copiar JSON"); a visualização formatada virá depois. Trocar de modo
-  limpa o arquivo selecionado.
+  para `POST /analyze-historico` e mostra o resultado em **duas abas**:
+  - **Visão geral** — cards reconstruindo o histórico do aluno: dados do aluno
+    (matrícula e ano de ingresso em destaque), disciplinas aprovadas, a fazer e
+    reprovadas (tabelas), progresso do curso (% de conclusão estimado + CH
+    faltante com barra) e desempenho por semestre (gráfico Chart.js: linha da
+    média + barras de aprovados/reprovados).
+  - **JSON** — retorno bruto da API com botão "Copiar JSON".
+  Trocar de modo limpa o arquivo selecionado.
 
 ### Fluxo de uso
 1. Upload múltiplo de PDFs (`.pdf`) do diário SIGAA pela barra lateral.

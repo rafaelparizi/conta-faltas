@@ -622,21 +622,27 @@
                     Envie o <strong class="text-slate-500">histórico escolar (PDF)</strong> do aluno na barra lateral e
                     clique em <strong class="text-slate-500">"Avaliar aluno"</strong>.
                 </div>
-                <div id="historico-conteudo"
-                    class="hidden bg-white rounded-xl border border-slate-200 overflow-hidden">
-                    <div class="px-5 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
-                        <div>
-                            <h3 class="text-lg font-bold text-slate-900">Status individual do aluno</h3>
-                            <p class="text-slate-500 text-sm mt-0.5">Retorno da API (JSON) — integração visual virá depois.
-                            </p>
-                        </div>
-                        <button onclick="copiarHistoricoJson()"
-                            class="px-3 py-1.5 text-xs rounded-lg bg-slate-200 text-slate-700 font-semibold hover:bg-slate-300 transition whitespace-nowrap">
-                            Copiar JSON
-                        </button>
+                <div id="historico-conteudo" class="hidden">
+                    <div class="border-b border-slate-200 mb-6 flex gap-1">
+                        <button id="htab-visao" onclick="trocarHistoricoTab('visao')" class="ctab ctab-ativo">Visão
+                            geral</button>
+                        <button id="htab-json" onclick="trocarHistoricoTab('json')" class="ctab">JSON</button>
                     </div>
-                    <pre id="historico-json"
-                        class="p-4 text-xs leading-relaxed text-slate-800 overflow-x-auto whitespace-pre max-h-[70vh]"></pre>
+
+                    <div id="hpanel-visao" class="space-y-5"></div>
+
+                    <div id="hpanel-json"
+                        class="hidden bg-white rounded-xl border border-slate-200 overflow-hidden">
+                        <div class="px-5 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
+                            <p class="text-slate-500 text-xs">Retorno bruto da API</p>
+                            <button onclick="copiarHistoricoJson()"
+                                class="px-3 py-1.5 text-xs rounded-lg bg-slate-200 text-slate-700 font-semibold hover:bg-slate-300 transition whitespace-nowrap">
+                                Copiar JSON
+                            </button>
+                        </div>
+                        <pre id="historico-json"
+                            class="p-4 text-xs leading-relaxed text-slate-800 overflow-x-auto whitespace-pre max-h-[70vh]"></pre>
+                    </div>
                 </div>
             </div>
 
@@ -909,7 +915,12 @@
                     );
                 }
 
+                if (json && json.erro) throw new Error(json.erro);
+
+                _historicoAtual = json;
                 document.getElementById('historico-json').textContent = JSON.stringify(json, null, 2);
+                renderHistoricoCards(json);
+                trocarHistoricoTab('visao');
                 document.getElementById('historico-conteudo').classList.remove('hidden');
             } catch (e) {
                 alert("Erro ao avaliar o histórico: " + e.message);
@@ -923,6 +934,178 @@
         function copiarHistoricoJson() {
             const txt = document.getElementById('historico-json').textContent;
             if (navigator.clipboard) navigator.clipboard.writeText(txt);
+        }
+
+        let _historicoAtual = null;
+        let graficoHistorico = null;
+
+        function trocarHistoricoTab(tab) {
+            const visao = tab === 'visao';
+            document.getElementById('htab-visao').classList.toggle('ctab-ativo', visao);
+            document.getElementById('htab-json').classList.toggle('ctab-ativo', !visao);
+            document.getElementById('hpanel-visao').classList.toggle('hidden', !visao);
+            document.getElementById('hpanel-json').classList.toggle('hidden', visao);
+        }
+
+        function _fmtNum(v, suf = '') {
+            return (v === null || v === undefined) ? '—' : `${v}${suf}`;
+        }
+
+        function _tabelaDisciplinas(itens, colunas) {
+            if (!itens.length) return `<p class="text-sm text-slate-400 px-1 py-2">Nenhuma.</p>`;
+            const th = colunas.map(c => `<th class="px-3 py-2 text-left font-semibold text-slate-500">${c.rot}</th>`).join('');
+            const linhas = itens.map(it => `<tr class="border-t border-slate-100">${
+                colunas.map(c => `<td class="px-3 py-2 ${c.cls || ''}">${c.get(it)}</td>`).join('')
+            }</tr>`).join('');
+            return `<div class="overflow-x-auto"><table class="w-full text-sm border-collapse">
+                <thead class="bg-slate-50"><tr>${th}</tr></thead><tbody>${linhas}</tbody></table></div>`;
+        }
+
+        function _cardHist(titulo, badge, corpoHtml) {
+            return `<div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div class="px-5 py-3 border-b border-slate-200 bg-slate-50 flex items-center gap-2">
+                    <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">${titulo}</h3>
+                    ${(badge !== null && badge !== undefined) ? `<span class="text-xs font-bold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">${badge}</span>` : ''}
+                </div>
+                <div class="p-5">${corpoHtml}</div>
+            </div>`;
+        }
+
+        function renderHistoricoCards(j) {
+            const ch = j.carga_horaria || {};
+            const idx = j.indices || {};
+            const pct = ch.pct_conclusao_estimado;
+
+            // 1) Dados do aluno (destaque a matrícula e o ingresso)
+            const destaque = (rot, val) => `
+                <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+                    <p class="text-[0.7rem] font-bold uppercase tracking-wider text-blue-700">${rot}</p>
+                    <p class="text-2xl font-extrabold text-blue-800 mt-0.5">${val}</p>
+                </div>`;
+            const infoLinha = (rot, val) =>
+                `<div><span class="text-slate-400 font-semibold">${rot}:</span> <span class="text-slate-700">${val}</span></div>`;
+            const cardDados = _cardHist('Dados do aluno', null, `
+                <p class="text-lg font-bold text-slate-900">${j.aluno || '—'}</p>
+                <p class="text-sm text-slate-500 mb-4">${j.curso || '—'}</p>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+                    ${destaque('Matrícula', j.matricula || '—')}
+                    ${destaque('Ano de ingresso', j.periodo_ingresso || '—')}
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+                    ${infoLinha('Status', j.status_matricula || '—')}
+                    ${infoLinha('Período atual', _fmtNum(j.periodo_atual, 'º'))}
+                    ${infoLinha('Forma de ingresso', j.forma_ingresso || '—')}
+                    ${infoLinha('Prazo máximo de conclusão', j.prazo_maximo || '—')}
+                    ${infoLinha('MC (média de conclusão)', _fmtNum(idx.MC))}
+                    ${infoLinha('IRA', _fmtNum(idx.IRA))}
+                </div>`);
+
+            // 2) Aprovadas
+            const cardApr = _cardHist('Disciplinas aprovadas', j.disciplinas_aprovadas.length, _tabelaDisciplinas(
+                j.disciplinas_aprovadas, [
+                    { rot: 'Código', get: d => `<span class="font-mono text-xs">${d.codigo}</span>` },
+                    { rot: 'Componente', get: d => d.componente, cls: 'font-medium text-slate-700' },
+                    { rot: 'Período', get: d => d.periodo || '—' },
+                    { rot: 'CH', get: d => _fmtNum(d.carga_horaria, 'h') },
+                    { rot: 'Média', get: d => `<span class="font-semibold text-green-700">${_fmtNum(d.media)}</span>` },
+                ]));
+
+            // 3) A fazer
+            const cardFazer = _cardHist('Disciplinas a fazer', j.disciplinas_a_cursar.length, _tabelaDisciplinas(
+                j.disciplinas_a_cursar, [
+                    { rot: 'Código', get: d => `<span class="font-mono text-xs">${d.codigo}</span>` },
+                    { rot: 'Componente', get: d => d.componente, cls: 'font-medium text-slate-700' },
+                    { rot: 'CH', get: d => _fmtNum(d.carga_horaria, 'h') },
+                    {
+                        rot: 'Situação', get: d => d.matriculado_atualmente
+                            ? '<span class="text-xs font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Em curso</span>'
+                            : '<span class="text-xs text-slate-400">A cursar</span>'
+                    },
+                ]));
+
+            // 4) Reprovadas
+            const rotSit = { REP: 'Reprovado por média', REPF: 'Reprovado por falta', REPMF: 'Média e falta' };
+            const cardRep = _cardHist('Disciplinas reprovadas', j.reprovacoes_detalhe.length, _tabelaDisciplinas(
+                j.reprovacoes_detalhe, [
+                    { rot: 'Código', get: d => `<span class="font-mono text-xs">${d.codigo}</span>` },
+                    { rot: 'Componente', get: d => d.componente, cls: 'font-medium text-slate-700' },
+                    { rot: 'Período', get: d => d.periodo || '—' },
+                    { rot: 'Motivo', get: d => `<span class="text-xs font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">${rotSit[d.situacao] || d.situacao}</span>` },
+                    { rot: 'Média', get: d => _fmtNum(d.media) },
+                    { rot: 'Freq.', get: d => _fmtNum(d.freq_pct, '%') },
+                ]));
+
+            // 5) Progresso do curso — % de conclusão + CH faltante
+            const cardProgresso = _cardHist('Progresso do curso', null, `
+                <div class="flex flex-wrap items-end gap-6 mb-3">
+                    <div>
+                        <p class="text-[0.7rem] font-bold uppercase tracking-wider text-slate-400">% de conclusão (estimado)</p>
+                        <p class="text-4xl font-extrabold text-blue-700">${_fmtNum(pct, '%')}</p>
+                    </div>
+                    <div>
+                        <p class="text-[0.7rem] font-bold uppercase tracking-wider text-slate-400">CH faltante</p>
+                        <p class="text-4xl font-extrabold text-slate-800">${_fmtNum(ch.pendente, 'h')}</p>
+                    </div>
+                </div>
+                <div class="w-full h-3 rounded-full bg-slate-200 overflow-hidden">
+                    <div class="h-full bg-blue-600" style="width:${pct || 0}%"></div>
+                </div>
+                <p class="text-xs text-slate-500 mt-3">
+                    Concluída: <strong>${_fmtNum(ch.concluida, 'h')}</strong> ·
+                    Em curso agora: <strong>${_fmtNum(ch.em_curso, 'h')}</strong> ·
+                    Pendente (obrigatórias): <strong>${_fmtNum(ch.pendente, 'h')}</strong>
+                </p>
+                <p class="text-[0.7rem] text-slate-400 mt-1">${ch.obs || ''}</p>`);
+
+            // 6) Desempenho por semestre (gráfico)
+            const cardSemestre = _cardHist('Desempenho por semestre', null,
+                `<div class="h-[320px]"><canvas id="grafico-historico"></canvas></div>`);
+
+            document.getElementById('hpanel-visao').innerHTML =
+                cardDados + cardApr + cardFazer + cardRep + cardProgresso + cardSemestre;
+
+            _renderGraficoHistorico(j.desempenho_por_semestre || []);
+        }
+
+        function _renderGraficoHistorico(semestres) {
+            const ctx = document.getElementById('grafico-historico');
+            if (!ctx) return;
+            if (graficoHistorico) graficoHistorico.destroy();
+            graficoHistorico = new Chart(ctx.getContext('2d'), {
+                data: {
+                    labels: semestres.map(s => s.periodo),
+                    datasets: [
+                        {
+                            type: 'line', label: 'Média do semestre', yAxisID: 'y',
+                            data: semestres.map(s => s.media_semestre),
+                            borderColor: '#1d4ed8', backgroundColor: '#1d4ed8',
+                            borderWidth: 3, tension: 0.3, pointRadius: 4, spanGaps: true,
+                        },
+                        {
+                            type: 'bar', label: 'Aprovados', yAxisID: 'y1',
+                            data: semestres.map(s => s.aprovados),
+                            backgroundColor: 'rgba(34,197,94,0.55)',
+                        },
+                        {
+                            type: 'bar', label: 'Reprovados', yAxisID: 'y1',
+                            data: semestres.map(s => s.reprovados),
+                            backgroundColor: 'rgba(239,68,68,0.55)',
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        y: { position: 'left', min: 0, max: 10, title: { display: true, text: 'Média' } },
+                        y1: {
+                            position: 'right', min: 0, title: { display: true, text: 'Componentes' },
+                            ticks: { precision: 0 }, grid: { drawOnChartArea: false },
+                        },
+                    },
+                    plugins: { legend: { position: 'bottom' } },
+                },
+            });
         }
 
         async function iniciarProcessamento() {
