@@ -951,14 +951,52 @@
             return (v === null || v === undefined) ? '—' : `${v}${suf}`;
         }
 
-        function _tabelaDisciplinas(itens, colunas) {
-            if (!itens.length) return `<p class="text-sm text-slate-400 px-1 py-2">Nenhuma.</p>`;
-            const th = colunas.map(c => `<th class="px-3 py-2 text-left font-semibold text-slate-500">${c.rot}</th>`).join('');
+        function _tabelaDisciplinas(itens, colunas, msgVazio = 'Nenhuma.') {
+            if (!itens.length) return `<p class="text-sm text-slate-400 px-1 py-3">${msgVazio}</p>`;
+            const th = colunas.map(c => `<th class="px-3 py-2 text-left font-semibold text-slate-500 whitespace-nowrap">${c.rot}</th>`).join('');
             const linhas = itens.map(it => `<tr class="border-t border-slate-100">${
                 colunas.map(c => `<td class="px-3 py-2 ${c.cls || ''}">${c.get(it)}</td>`).join('')
             }</tr>`).join('');
             return `<div class="overflow-auto max-h-[460px]"><table class="w-full text-sm border-collapse">
                 <thead class="bg-slate-50 sticky top-0"><tr>${th}</tr></thead><tbody>${linhas}</tbody></table></div>`;
+        }
+
+        // Cards de disciplina com campo de busca (filtra por código, nome ou docente)
+        const _discState = {};
+
+        function _cardDiscBusca(chave, titulo, itens, colunas) {
+            _discState[chave] = { itens, colunas };
+            return `<div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div class="px-5 py-3 border-b border-slate-200 bg-slate-50 flex items-center gap-2 flex-wrap">
+                    <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">${titulo}</h3>
+                    <span class="text-xs font-bold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">
+                        <span id="cnt-${chave}">${itens.length}</span> de ${itens.length}
+                    </span>
+                </div>
+                <div class="px-5 pt-4">
+                    <div class="relative">
+                        <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none"
+                            stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
+                        </svg>
+                        <input id="busca-${chave}" oninput="_filtrarDisc('${chave}')" placeholder="Buscar por disciplina ou docente..."
+                            class="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                <div class="p-5 pt-3" id="tbl-${chave}">${_tabelaDisciplinas(itens, colunas)}</div>
+            </div>`;
+        }
+
+        function _filtrarDisc(chave) {
+            const st = _discState[chave];
+            if (!st) return;
+            const t = (document.getElementById('busca-' + chave).value || '').toLowerCase().trim();
+            const f = t
+                ? st.itens.filter(d => `${d.codigo} ${d.componente} ${d.docente || ''}`.toLowerCase().includes(t))
+                : st.itens;
+            document.getElementById('cnt-' + chave).textContent = f.length;
+            document.getElementById('tbl-' + chave).innerHTML =
+                _tabelaDisciplinas(f, st.colunas, 'Nenhuma disciplina corresponde à busca.');
         }
 
         function _cardHist(titulo, badge, corpoHtml) {
@@ -1000,40 +1038,38 @@
                     ${infoLinha('IRA', _fmtNum(idx.IRA))}
                 </div>`);
 
-            // 2) Aprovadas
-            const cardApr = _cardHist('Disciplinas aprovadas', j.disciplinas_aprovadas.length, _tabelaDisciplinas(
-                j.disciplinas_aprovadas, [
-                    { rot: 'Código', get: d => `<span class="font-mono text-xs">${d.codigo}</span>` },
-                    { rot: 'Componente', get: d => d.componente, cls: 'font-medium text-slate-700' },
-                    { rot: 'Período', get: d => d.periodo || '—' },
-                    { rot: 'CH', get: d => _fmtNum(d.carga_horaria, 'h') },
-                    { rot: 'Média', get: d => `<span class="font-semibold text-green-700">${_fmtNum(d.media)}</span>` },
-                ]));
+            const colCodigo = { rot: 'Código', get: d => `<span class="font-mono text-xs">${d.codigo}</span>` };
+            const colComp = { rot: 'Componente', get: d => d.componente, cls: 'font-medium text-slate-700' };
+            const colDocente = { rot: 'Docente', get: d => `<span class="text-xs text-slate-500">${d.docente || '—'}</span>` };
 
-            // 3) A cursar
-            const cardCursar = _cardHist('Disciplinas a cursar', j.disciplinas_a_cursar.length, _tabelaDisciplinas(
-                j.disciplinas_a_cursar, [
-                    { rot: 'Código', get: d => `<span class="font-mono text-xs">${d.codigo}</span>` },
-                    { rot: 'Componente', get: d => d.componente, cls: 'font-medium text-slate-700' },
-                    { rot: 'CH', get: d => _fmtNum(d.carga_horaria, 'h') },
-                    {
-                        rot: 'Situação', get: d => d.matriculado_atualmente
-                            ? '<span class="text-xs font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Matriculado</span>'
-                            : '<span class="text-xs text-slate-400">A cursar</span>'
-                    },
-                ]));
+            // Aprovadas
+            const cardApr = _cardDiscBusca('apr', 'Disciplinas aprovadas', j.disciplinas_aprovadas, [
+                colCodigo, colComp, colDocente,
+                { rot: 'Período', get: d => d.periodo || '—' },
+                { rot: 'CH', get: d => _fmtNum(d.carga_horaria, 'h') },
+                { rot: 'Média', get: d => `<span class="font-semibold text-green-700">${_fmtNum(d.media)}</span>` },
+            ]);
 
-            // 4) Reprovadas
+            // A cursar
+            const cardCursar = _cardDiscBusca('cursar', 'Disciplinas a cursar', j.disciplinas_a_cursar, [
+                colCodigo, colComp, colDocente,
+                { rot: 'CH', get: d => _fmtNum(d.carga_horaria, 'h') },
+                {
+                    rot: 'Situação', get: d => d.matriculado_atualmente
+                        ? '<span class="text-xs font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Matriculado</span>'
+                        : '<span class="text-xs text-slate-400">A cursar</span>'
+                },
+            ]);
+
+            // Reprovadas
             const rotSit = { REP: 'Reprovado por média', REPF: 'Reprovado por falta', REPMF: 'Média e falta' };
-            const cardRep = _cardHist('Disciplinas reprovadas', j.reprovacoes_detalhe.length, _tabelaDisciplinas(
-                j.reprovacoes_detalhe, [
-                    { rot: 'Código', get: d => `<span class="font-mono text-xs">${d.codigo}</span>` },
-                    { rot: 'Componente', get: d => d.componente, cls: 'font-medium text-slate-700' },
-                    { rot: 'Período', get: d => d.periodo || '—' },
-                    { rot: 'Motivo', get: d => `<span class="text-xs font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">${rotSit[d.situacao] || d.situacao}</span>` },
-                    { rot: 'Média', get: d => _fmtNum(d.media) },
-                    { rot: 'Freq.', get: d => _fmtNum(d.freq_pct, '%') },
-                ]));
+            const cardRep = _cardDiscBusca('rep', 'Disciplinas reprovadas', j.reprovacoes_detalhe, [
+                colCodigo, colComp, colDocente,
+                { rot: 'Período', get: d => d.periodo || '—' },
+                { rot: 'Motivo', get: d => `<span class="text-xs font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">${rotSit[d.situacao] || d.situacao}</span>` },
+                { rot: 'Média', get: d => _fmtNum(d.media) },
+                { rot: 'Freq.', get: d => _fmtNum(d.freq_pct, '%') },
+            ]);
 
             // 5) Progresso do curso — % de conclusão + CH faltante
             const cardProgresso = _cardHist('Progresso do curso', null, `

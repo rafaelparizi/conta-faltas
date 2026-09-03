@@ -592,11 +592,18 @@ def _parse_historico_componentes(rows):
         periodo, _marc, codigo, nome_docente, _hora, ch, _turma, freq, nota, media, situ = row[:11]
         if not codigo or not situ:
             continue
+        # A célula "NOME DO COMPONENTE\nDOCENTE(S)" — 1ª linha é o nome,
+        # o restante são os docentes (pode haver mais de um). Remove o sufixo
+        # de carga horária que às vezes acompanha o nome do docente ("(72h)").
+        partes = [p.strip() for p in (nome_docente or "").split("\n") if p.strip()]
+        docentes = " / ".join(partes[1:])
+        docentes = re.sub(r"\s*[-–]?\s*\(?\s*\d+\s*h\s*\)?", "", docentes)
+        docentes = re.sub(r"\s{2,}", " ", docentes).strip(" /-–—")
         out.append(Componente(
             periodo=(periodo or "").strip(),
             codigo=codigo.strip(),
-            nome=(nome_docente or "").split("\n")[0].strip(),
-            docentes="",
+            nome=partes[0] if partes else "",
+            docentes=docentes,
             carga_horaria=_hist_to_int(ch),
             freq_pct=_hist_to_float(freq),
             nota_bruta=_hist_to_float(nota),
@@ -699,6 +706,12 @@ def resumo_status(h):
     base_ch = ch_concluida + ch_pendente
     pct_conclusao = round(ch_concluida / base_ch * 100, 1) if base_ch else None
 
+    # Docente por código (do último componente cursado desse código que traga docente).
+    docente_por_codigo = {}
+    for c in h.componentes:
+        if c.docentes:
+            docente_por_codigo[c.codigo] = c.docentes
+
     return {
         "aluno": h.nome,
         "matricula": h.matricula,
@@ -749,18 +762,19 @@ def resumo_status(h):
         },
         "disciplinas_aprovadas": [
             {"codigo": c.codigo, "componente": c.nome, "periodo": c.periodo,
-             "carga_horaria": c.carga_horaria, "media": c.media}
+             "carga_horaria": c.carga_horaria, "media": c.media, "docente": c.docentes}
             for c in h.componentes if c.situacao == "APR"
         ],
         "disciplinas_a_cursar": [
             {"codigo": p.codigo, "componente": p.nome,
-             "carga_horaria": p.carga_horaria, "matriculado_atualmente": p.matriculado_atualmente}
+             "carga_horaria": p.carga_horaria, "matriculado_atualmente": p.matriculado_atualmente,
+             "docente": docente_por_codigo.get(p.codigo, "")}
             for p in h.pendentes
         ],
         "reprovacoes_detalhe": [
             {"codigo": c.codigo, "componente": c.nome, "periodo": c.periodo,
              "carga_horaria": c.carga_horaria, "media": c.media,
-             "freq_pct": c.freq_pct, "situacao": c.situacao}
+             "freq_pct": c.freq_pct, "situacao": c.situacao, "docente": c.docentes}
             for c in h.componentes if c.situacao in HIST_REPROVACOES
         ],
         "desempenho_por_semestre": _desempenho_por_semestre(h.componentes),

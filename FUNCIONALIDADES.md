@@ -109,7 +109,9 @@ para **um** aluno, um resumo pronto para virar JSON de API:
   os tokens (não corrompe letras dobradas legítimas).
 - **Tabelas** (páginas 2+): componentes cursados/cursando (11 colunas, parse
   posicional) e a lista de obrigatórias pendentes (pode atravessar a quebra de
-  página; os pedaços são somados).
+  página; os pedaços são somados). O **docente** de cada componente é extraído da
+  2ª linha da célula do nome (removido o sufixo de CH); nas pendentes que o aluno
+  já cursou/está cursando, o docente é herdado por código.
 - Classificação de aprovação/reprovação usa **exclusivamente a coluna
   "Situação"** (`APR`, `REP`, `REPF`, `REPMF`, `MATR`, `DISP`, `CUMP`, `CANC`,
   `TRANC`) — nunca a nota.
@@ -174,8 +176,10 @@ para **um** aluno, um resumo pronto para virar JSON de API:
     (2) **progresso do curso** (% de conclusão estimado + CH faltante com barra);
     (3) **desempenho por semestre** (gráfico Chart.js: linha da média + barras de
     aprovados/reprovados); (4) **disciplinas aprovadas** e **a cursar** lado a
-    lado; (5) **disciplinas reprovadas** abaixo, em largura total. Disciplinas em
-    que o aluno está matriculado agora recebem o badge "Matriculado".
+    lado; (5) **disciplinas reprovadas** abaixo, em largura total. Cada card de
+    disciplinas mostra o **docente** e tem **campo de busca** (filtra por código,
+    componente ou docente, com contador "N de N"). Disciplinas em que o aluno
+    está matriculado agora recebem o badge "Matriculado".
   - **JSON** — retorno bruto da API com botão "Copiar JSON".
   Trocar de modo limpa o arquivo selecionado.
 
