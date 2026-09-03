@@ -186,19 +186,11 @@ para **um** aluno, um resumo pronto para virar JSON de API:
     tabela de desempenho por semestre (com % de aprovação/reprovação) **+ o
     próprio gráfico**, e as três tabelas de disciplinas (com docente). O arquivo
     sai como `avaliacao_<nome-do-aluno>_<matrícula>.pdf`.
-  - **Áreas temáticas** — classifica as disciplinas do currículo em ~10 eixos
-    (Programação, Engenharia de Software, Banco de Dados, Infra e Redes,
-    Matemática e Lógica, Gestão e Governança, Fundamentos/Tec. Avançadas,
-    Formação e Ética, Prática e TCC, Eletivas) e mostra, para o aluno: um
-    **gráfico radar** (% aprovado / % aprovado + em curso por eixo) e um card
-    por área com barra de progresso, contagem por situação (aprovadas,
-    matriculadas, a refazer, a cursar) e a lista das disciplinas. A classificação
-    é do currículo BSI/São Borja; disciplinas não reconhecidas caem em "Não
-    classificadas". Casamento por nome normalizado (sem acento, sem preposições).
-    **Cada disciplina é contada uma única vez** — chave = nome normalizado (não
-    código, para colapsar equivalências), com o resultado mais avançado
-    (aprovada > matriculada > a cursar/reprovada).
   - **JSON** — retorno bruto da API com botão "Copiar JSON".
+
+  > Havia uma aba "Áreas temáticas" (classificação das disciplinas por eixo do
+  > currículo) — **removida** por ser específica do curso BSI/São Borja; a
+  > ferramenta deve valer para qualquer curso. Histórico no git (`57aff17`).
   Trocar de modo limpa o arquivo selecionado.
 
 ### Fluxo de uso
@@ -254,9 +246,9 @@ para **um** aluno, um resumo pronto para virar JSON de API:
 - **PDF consolidado por aluno**: dados do aluno, disciplinas, série de
   frequência e gráfico.
 - **PDF da avaliação individual** (histórico): cabeçalho, dados do aluno,
-  progresso do curso, desempenho por semestre (tabela + gráfico), **cobertura por
-  área temática (tabela-resumo + radar)** e as tabelas de disciplinas aprovadas /
-  a cursar / reprovadas (com docente) — usa `jspdf-autotable`.
+  progresso do curso, desempenho por semestre (tabela + gráfico) e as tabelas de
+  disciplinas aprovadas / a cursar / reprovadas (com docente) — usa
+  `jspdf-autotable`.
 - Cabeçalho institucional com logo do IFFar (`iffar-horizontal.png`),
   convertido para base64 na geração.
 

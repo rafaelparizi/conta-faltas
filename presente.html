@@ -635,14 +635,10 @@
                     <div class="border-b border-slate-200 mb-6 flex gap-1 flex-wrap">
                         <button id="htab-visao" onclick="trocarHistoricoTab('visao')" class="ctab ctab-ativo">Visão
                             geral</button>
-                        <button id="htab-areas" onclick="trocarHistoricoTab('areas')" class="ctab">Áreas
-                            temáticas</button>
                         <button id="htab-json" onclick="trocarHistoricoTab('json')" class="ctab">JSON</button>
                     </div>
 
                     <div id="hpanel-visao" class="space-y-5"></div>
-
-                    <div id="hpanel-areas" class="hidden space-y-5"></div>
 
                     <div id="hpanel-json" class="hidden bg-white rounded-xl border border-slate-200 overflow-hidden">
                         <div
@@ -938,7 +934,6 @@
                 document.getElementById('historico-conteudo').classList.remove('hidden');
                 trocarHistoricoTab('visao');
                 renderHistoricoCards(json);
-                renderHistoricoAreas(json);
             } catch (e) {
                 alert("Erro ao avaliar o histórico: " + e.message);
                 document.getElementById('historico-vazio').classList.remove('hidden');
@@ -955,16 +950,14 @@
 
         let _historicoAtual = null;
         let graficoHistorico = null;
-        let graficoAreas = null;
 
         function trocarHistoricoTab(tab) {
-            const abas = ['visao', 'areas', 'json'];
+            const abas = ['visao', 'json'];
             if (!abas.includes(tab)) tab = 'visao';
             abas.forEach(a => {
                 document.getElementById('htab-' + a).classList.toggle('ctab-ativo', a === tab);
                 document.getElementById('hpanel-' + a).classList.toggle('hidden', a !== tab);
             });
-            if (tab === 'areas' && graficoAreas) graficoAreas.resize();
         }
 
         function _fmtNum(v, suf = '') {
@@ -1194,220 +1187,6 @@
             return img;
         }
 
-        // =========================================================
-        // ÁREAS TEMÁTICAS — como o aluno atende a cada eixo do currículo
-        // =========================================================
-        const CLASSIFICACAO_AREAS = {
-            "Programação": ["Fundamentos de Programação", "Fundamentos de Programação para Web", "Estrutura de Dados", "Programação Orientada a Objetos", "Programação Orientada a Objetos Avançada", "Programação Web", "Programação de Dispositivos Móveis"],
-            "Engenharia de Software e Interface": ["Fundamentos de Engenharia de Software", "Processo de Software e Engenharia de Requisitos", "Interface Humano Computador", "Projeto de Software", "Gerência de Projeto de Software", "Avaliação de Sistemas Interativos"],
-            "Banco de Dados": ["Fundamentos de Banco de Dados", "Laboratório de Banco de Dados", "Tópicos Emergentes em Banco de Dados"],
-            "Infraestrutura, Hardware e Redes": ["Organização e Arquitetura de Computadores", "Redes de Computadores I", "Sistemas Operacionais", "Redes de Computadores II"],
-            "Matemática e Lógica": ["Lógica para Computação", "Álgebra Linear", "Estatística e Probabilidade", "Matemática Discreta"],
-            "Gestão, Negócios e Governança": ["Fundamentos da Administração", "Contabilidade e Custos", "Empreendedorismo", "Governança de Tecnologia da Informação"],
-            "Fundamentos e Tecnologias Avançadas": ["Fundamentos da Computação e Sistemas de Informação", "Inteligência Artificial"],
-            "Formação Científica, Humanística e Ética": ["Inglês Instrumental", "Leitura e Produção Textual", "Metodologia Científica", "Ética Profissional", "Direito e Legislação em Informática"],
-            "Prática, Integração e TCC": ["Projeto Integrador I", "Projeto Integrador II", "Projeto Integrador III", "Projeto de Conclusão de Curso", "Trabalho de Conclusão de Curso"],
-            "Eletivas": ["Eletiva I", "Eletiva II", "Eletiva III", "Eletiva IV"],
-        };
-        const AREAS_LABEL_CURTO = {
-            "Programação": "Programação",
-            "Engenharia de Software e Interface": "Eng. de Software",
-            "Banco de Dados": "Banco de Dados",
-            "Infraestrutura, Hardware e Redes": "Infra e Redes",
-            "Matemática e Lógica": "Matemática e Lógica",
-            "Gestão, Negócios e Governança": "Gestão e Governança",
-            "Fundamentos e Tecnologias Avançadas": "Fund. e Tec. Avançadas",
-            "Formação Científica, Humanística e Ética": "Formação e Ética",
-            "Prática, Integração e TCC": "Prática e TCC",
-            "Eletivas": "Eletivas",
-        };
-
-        function _normDisc(s) {
-            return (s || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-                .replace(/[^A-Z0-9 ]/g, ' ')
-                .replace(/\b(DE|DA|DO|DAS|DOS|E|EM|PARA|COM|A|O|AS|OS)\b/g, ' ')
-                .replace(/\s+/g, ' ').trim();
-        }
-
-        const _areaPorDisc = {};
-        const _totalPorArea = {};
-        for (const [area, nomes] of Object.entries(CLASSIFICACAO_AREAS)) {
-            _totalPorArea[area] = nomes.length;
-            for (const n of nomes) _areaPorDisc[_normDisc(n)] = area;
-        }
-
-        function _areaDe(nome) {
-            const n = _normDisc(nome);
-            if (_areaPorDisc[n]) return _areaPorDisc[n];
-            for (const [k, area] of Object.entries(_areaPorDisc)) {
-                if (Math.min(n.length, k.length) >= 8 && (n.includes(k) || k.includes(n))) return area;
-            }
-            return null;
-        }
-
-        // Um resultado por disciplina (chave = nome normalizado, não código, para
-        // colapsar equivalências/variações). Prioridade: aprovada > matriculada >
-        // a cursar/reprovada — ou seja, o resultado mais avançado, que também é o
-        // "último" (não se fica pendente depois de aprovar).
-        function _statusPorDisciplina(j) {
-            const prio = { aprovada: 4, cursando: 3, a_cursar: 1, reprovada: 1 };
-            const m = {};
-            const set = (nome, codigo, st) => {
-                const k = _normDisc(nome);
-                if (!k) return;
-                if (!m[k] || prio[st] > prio[m[k].status]) {
-                    m[k] = { status: st, nome, codigo, jaReprovou: m[k] ? m[k].jaReprovou : false };
-                }
-            };
-            (j.disciplinas_aprovadas || []).forEach(d => set(d.componente, d.codigo, 'aprovada'));
-            (j.disciplinas_a_cursar || []).forEach(d => set(d.componente, d.codigo, d.matriculado_atualmente ? 'cursando' : 'a_cursar'));
-            (j.reprovacoes_detalhe || []).forEach(d => {
-                const k = _normDisc(d.componente);
-                if (!k) return;
-                if (!m[k]) set(d.componente, d.codigo, 'reprovada');
-                if (m[k] && (m[k].status === 'a_cursar' || m[k].status === 'cursando')) m[k].jaReprovou = true;
-            });
-            return Object.values(m);
-        }
-
-        function _agregarAreas(j) {
-            const disciplinas = _statusPorDisciplina(j);
-            const areas = {};
-            const init = a => areas[a] || (areas[a] = {
-                area: a, rotulo: AREAS_LABEL_CURTO[a] || a, total: _totalPorArea[a] || 0,
-                aprovada: 0, cursando: 0, a_cursar: 0, reprovada: 0, refazer: 0, disciplinas: [],
-            });
-            Object.keys(CLASSIFICACAO_AREAS).forEach(init);
-            const outras = init('Não classificadas'); outras.total = 0;
-
-            for (const s of disciplinas) {
-                const areaNome = _areaDe(s.nome);
-                const b = areaNome ? init(areaNome) : outras;
-                if (!areaNome) b.total++;
-                if (s.jaReprovou && s.status === 'a_cursar') b.refazer++;
-                else b[s.status]++;
-                b.disciplinas.push({ codigo: s.codigo, nome: s.nome, status: s.status, jaReprovou: !!s.jaReprovou });
-            }
-
-            const ordem = [...Object.keys(CLASSIFICACAO_AREAS), 'Não classificadas'];
-            return ordem.map(nome => areas[nome]).filter(a => a && (a.disciplinas.length || a.total)).map(a => {
-                const feitas = a.aprovada + a.cursando + a.a_cursar + a.reprovada + a.refazer;
-                a.total = Math.max(a.total, feitas);
-                a.pctAprov = a.total ? Math.round(a.aprovada / a.total * 100) : 0;
-                a.pctEmAndamento = a.total ? Math.round((a.aprovada + a.cursando) / a.total * 100) : 0;
-                a.disciplinas.sort((x, y) => x.nome.localeCompare(y.nome, 'pt-BR'));
-                return a;
-            });
-        }
-
-        const _AREA_ST = {
-            aprovada: { rot: 'Aprovada', dot: 'bg-green-500', txt: 'text-green-700' },
-            cursando: { rot: 'Matriculado', dot: 'bg-amber-500', txt: 'text-amber-700' },
-            refazer: { rot: 'A refazer (já reprovou)', dot: 'bg-red-500', txt: 'text-red-700' },
-            a_cursar: { rot: 'A cursar', dot: 'bg-slate-300', txt: 'text-slate-500' },
-            reprovada: { rot: 'Reprovada', dot: 'bg-red-500', txt: 'text-red-700' },
-        };
-
-        function renderHistoricoAreas(j) {
-            const areas = _agregarAreas(j);
-            const painel = document.getElementById('hpanel-areas');
-
-            const chip = (n, dot, txt) => n ? `<span class="inline-flex items-center gap-1 text-xs font-semibold text-slate-600">
-                <span class="w-2 h-2 rounded-full ${dot}"></span>${n} ${txt}</span>` : '';
-
-            const cards = areas.map(a => {
-                const lista = a.disciplinas.map(d => {
-                    const st = _AREA_ST[d.jaReprovou && d.status === 'a_cursar' ? 'refazer' : d.status] || _AREA_ST.a_cursar;
-                    return `<li class="flex items-center gap-2 py-1">
-                        <span class="w-2 h-2 rounded-full shrink-0 ${st.dot}"></span>
-                        <span class="flex-1 text-slate-700">${d.nome}</span>
-                        <span class="text-xs ${st.txt} whitespace-nowrap">${st.rot}${d.jaReprovou && d.status !== 'a_cursar' ? ' · já reprovou' : ''}</span>
-                    </li>`;
-                }).join('');
-                return `<div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                    <div class="px-5 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-2">
-                        <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">${a.area}</h3>
-                        <span class="text-xs font-bold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">${a.aprovada}/${a.total} aprovadas</span>
-                    </div>
-                    <div class="p-5">
-                        <div class="w-full h-3 rounded-full bg-slate-200 overflow-hidden flex">
-                            <div class="h-full bg-green-500" style="width:${a.pctAprov}%"></div>
-                            <div class="h-full bg-amber-400" style="width:${Math.max(0, a.pctEmAndamento - a.pctAprov)}%"></div>
-                        </div>
-                        <div class="flex flex-wrap gap-x-4 gap-y-1 mt-3">
-                            ${chip(a.aprovada, 'bg-green-500', 'aprovadas')}
-                            ${chip(a.cursando, 'bg-amber-500', 'matriculadas')}
-                            ${chip(a.refazer, 'bg-red-500', 'a refazer')}
-                            ${chip(a.a_cursar, 'bg-slate-300', 'a cursar')}
-                            ${chip(a.reprovada, 'bg-red-500', 'reprovadas')}
-                        </div>
-                        <details class="mt-3 group">
-                            <summary class="text-xs font-semibold text-blue-600 cursor-pointer select-none">Ver disciplinas</summary>
-                            <ul class="mt-2 text-sm divide-y divide-slate-100">${lista}</ul>
-                        </details>
-                    </div>
-                </div>`;
-            }).join('');
-
-            painel.innerHTML = `
-                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                    <div class="px-5 py-3 border-b border-slate-200 bg-slate-50">
-                        <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">Cobertura por área temática</h3>
-                        <p class="text-xs text-slate-500 mt-0.5">% de disciplinas aprovadas (verde) e em andamento (verde + amarelo) em cada eixo do currículo</p>
-                    </div>
-                    <div class="p-5"><div class="h-[380px]"><canvas id="grafico-areas"></canvas></div></div>
-                </div>
-                <div class="grid gap-5 lg:grid-cols-2 items-start">${cards}</div>`;
-
-            _renderGraficoAreas(areas);
-        }
-
-        function _configGraficoAreas(areas, opts) {
-            const comAlvo = areas.filter(a => a.area !== 'Não classificadas');
-            return {
-                type: 'radar',
-                data: {
-                    labels: comAlvo.map(a => a.rotulo),
-                    datasets: [
-                        {
-                            label: '% aprovado', data: comAlvo.map(a => a.pctAprov),
-                            borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,0.25)',
-                            borderWidth: 2, pointRadius: 3,
-                        },
-                        {
-                            label: '% aprovado + em curso', data: comAlvo.map(a => a.pctEmAndamento),
-                            borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.12)',
-                            borderWidth: 2, borderDash: [5, 4], pointRadius: 2,
-                        },
-                    ],
-                },
-                options: Object.assign({
-                    scales: { r: { min: 0, max: 100, ticks: { stepSize: 25, callback: v => v + '%' }, pointLabels: { font: { size: 10 } } } },
-                    plugins: { legend: { position: 'bottom' } },
-                }, opts || {}),
-            };
-        }
-
-        function _renderGraficoAreas(areas) {
-            const ctx = document.getElementById('grafico-areas');
-            if (!ctx) return;
-            if (graficoAreas) graficoAreas.destroy();
-            graficoAreas = new Chart(ctx.getContext('2d'),
-                _configGraficoAreas(areas, { responsive: true, maintainAspectRatio: false }));
-        }
-
-        // Radar num canvas próprio (tamanho fixo) só para o PDF
-        function _imagemGraficoAreas(areas) {
-            if (!areas || !areas.filter(a => a.area !== 'Não classificadas').length) return null;
-            const cv = document.createElement('canvas');
-            cv.width = 680; cv.height = 620;
-            const ch = new Chart(cv.getContext('2d'),
-                _configGraficoAreas(areas, { responsive: false, animation: false, devicePixelRatio: 2 }));
-            const img = ch.toBase64Image('image/png', 1);
-            ch.destroy();
-            return img;
-        }
-
         async function gerarPdfHistorico() {
             const j = _historicoAtual;
             if (!j) { alert('Avalie um histórico primeiro.'); return; }
@@ -1498,32 +1277,6 @@
                     y += alt + 10;
                 }
             } catch (e) { console.error('gráfico PDF:', e); }
-
-            // Cobertura por área temática (resumo + radar)
-            const areas = _agregarAreas(j);
-            const areasComAlvo = areas.filter(a => a.area !== 'Não classificadas');
-            if (areasComAlvo.length) {
-                if (y > 235) { doc.addPage(); y = 16; }
-                doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
-                doc.text('Cobertura por área temática', M, y); y += 3;
-                doc.autoTable({
-                    startY: y, styles: { fontSize: 8, cellPadding: 1.3 },
-                    headStyles: { fillColor: [22, 163, 74] },
-                    columnStyles: { 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' }, 5: { halign: 'center' }, 6: { halign: 'center' } },
-                    head: [['Área', 'Aprov.', 'Matric.', 'A refazer', 'A cursar', 'Total', '% aprov.']],
-                    body: areasComAlvo.map(a => [a.area, a.aprovada, a.cursando, a.refazer, a.a_cursar, a.total, a.pctAprov + '%']),
-                });
-                y = doc.lastAutoTable.finalY + 6;
-                try {
-                    const img = _imagemGraficoAreas(areas);
-                    if (img && img.length > 2000) {
-                        const w = 115, h = 105;
-                        if (y + h > 285) { doc.addPage(); y = 16; }
-                        doc.addImage(img, 'PNG', M, y, w, h);
-                        y += h + 10;
-                    }
-                } catch (e) { console.error('radar PDF:', e); }
-            }
 
             secao('Disciplinas aprovadas',
                 ['Código', 'Componente', 'Docente', 'Período', 'CH', 'Média'],
