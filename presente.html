@@ -368,7 +368,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round"
                             d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
-                    Avaliação aluno (individual) - Apenas Superior
+                    Análise aluno (individual) - Apenas Superior
                 </button>
 
                 <div id="painel-mes" class="hidden mt-3 px-2">
@@ -624,12 +624,12 @@
                 </div>
             </div><!-- /#modo-diario -->
 
-            <!-- ===== Modo: Avaliação individual do aluno ===== -->
+            <!-- ===== Modo: Análise individual do aluno ===== -->
             <div id="modo-historico" class="hidden">
                 <div id="historico-vazio"
                     class="bg-white rounded-xl border border-slate-200 text-center py-16 px-6 text-slate-400 text-sm">
                     Envie o <strong class="text-slate-500">histórico escolar (PDF)</strong> do aluno na barra lateral e
-                    clique em <strong class="text-slate-500">"Avaliar aluno"</strong>.
+                    clique em <strong class="text-slate-500">"Analisar aluno"</strong>.
                 </div>
                 <div id="historico-conteudo" class="hidden">
                     <div class="border-b border-slate-200 mb-6 flex gap-1 flex-wrap">
@@ -754,7 +754,7 @@
         let ordemDesc = true;
         let colunaOrdenacao = 'nome';
         let abaAtual = 'frequencia';
-        let modoApp = 'diario';   // 'diario' (diários de classe) | 'historico' (avaliação individual)
+        let modoApp = 'diario';   // 'diario' (diários de classe) | 'historico' (análise individual)
         let graficoTemporal = null;
         let alunoModalAtual = null;
         let graficoConsolidado = null;
@@ -868,7 +868,7 @@
             if (paginaAtual < totalPaginas) irParaPagina(paginaAtual + 1);
         }
 
-        // ===== Alternância de modo (diários x avaliação individual) =====
+        // ===== Alternância de modo (diários x análise individual) =====
         function _uiModo(historico) {
             document.getElementById('modo-diario').classList.toggle('hidden', historico);
             document.getElementById('modo-historico').classList.toggle('hidden', !historico);
@@ -879,7 +879,7 @@
             document.getElementById('upload-sub').textContent =
                 historico ? 'Histórico escolar (PDF) do SIGAA' : 'Diários de classe do SIGAA';
             document.getElementById('btn-processar').textContent =
-                historico ? 'Avaliar aluno' : 'Processar relatório';
+                historico ? 'Analisar aluno' : 'Processar relatório';
         }
 
         function _limparArquivoSelecionado() {
@@ -899,9 +899,9 @@
             document.getElementById('tab-frequencia').classList.remove('nav-ativo');
             document.getElementById('tab-evasao').classList.remove('nav-ativo');
             document.getElementById('painel-mes').classList.add('hidden');
-            document.getElementById('titulo-tabela').textContent = 'Avaliação individual do aluno';
+            document.getElementById('titulo-tabela').textContent = 'Análise individual do aluno';
             document.getElementById('descricao-aba').textContent =
-                'Envie o histórico escolar (PDF) do aluno e clique em "Avaliar aluno".';
+                'Envie o histórico escolar (PDF) do aluno e clique em "Analisar aluno".';
         }
 
         async function processarHistorico() {
@@ -935,7 +935,7 @@
                 trocarHistoricoTab('visao');
                 renderHistoricoCards(json);
             } catch (e) {
-                alert("Erro ao avaliar o histórico: " + e.message);
+                alert("Erro ao analisar o histórico: " + e.message);
                 document.getElementById('historico-vazio').classList.remove('hidden');
                 console.error(e);
             } finally {
@@ -1202,7 +1202,7 @@
             } catch (e) { /* segue sem logo */ }
 
             doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
-            doc.text('AVALIAÇÃO INDIVIDUAL DO ALUNO', M + 44, y + 6);
+            doc.text('ANÁLISE INDIVIDUAL DO ALUNO', M + 44, y + 6);
             doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(110);
             doc.text('Presença.edu · reconstrução do histórico escolar (SIGAA)', M + 44, y + 11);
             doc.setTextColor(0);
@@ -1308,8 +1308,8 @@
             const slug = s => (s || '').normalize('NFD')
                 .replace(/[^\x00-\x7F]/g, '')
                 .replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').toLowerCase();
-            const partes = ['avaliacao', slug(j.aluno), j.matricula].filter(Boolean);
-            doc.save(`${partes.join('_') || 'avaliacao_aluno'}.pdf`);
+            const partes = ['analise', slug(j.aluno), j.matricula].filter(Boolean);
+            doc.save(`${partes.join('_') || 'analise_aluno'}.pdf`);
         }
 
         async function iniciarProcessamento() {

@@ -96,9 +96,9 @@ Sugestão inicial pela carga horária semestral (`MAPA_CH_PERIODOS`):
 | `POST /check-disciplines` | **Etapa 1** — pré-análise: retorna metadados de cada PDF (deduplicados por código) com `peso_sugerido` e `nivel_sugerido` pela CH; `requer_confirmacao` sinaliza CH que pode ser distribuída em mais de um dia (72/80/120h) |
 | `POST /analyze` | **Etapa 2A** — análise de evasão de um mês específico: identifica alunos com faltas consecutivas no fim do mês, soma os períodos reais faltados e agrega o resultado por aluno/disciplina |
 | `POST /analyze-frequency` | **Etapa 2B** — análise completa de frequência: percentual de presença por mês e geral, total de aulas e de dias faltados por aluno |
-| `POST /analyze-historico` | **Avaliação individual** — recebe um PDF de Histórico Escolar (campo `arquivo`) e devolve o status atualizado de um aluno (ver abaixo) |
+| `POST /analyze-historico` | **Análise individual** — recebe um PDF de Histórico Escolar (campo `arquivo`) e devolve o status atualizado de um aluno (ver abaixo) |
 
-### Parser de Histórico Escolar (avaliação individual do aluno)
+### Parser de Histórico Escolar (análise individual do aluno)
 Portado de `teste_parser/parser.py` (documentação completa em
 `teste_parser/DOCUMENTACAO.md`). Lê o PDF de "Histórico Escolar" do SIGAA e monta,
 para **um** aluno, um resumo pronto para virar JSON de API:
@@ -169,8 +169,8 @@ para **um** aluno, um resumo pronto para virar JSON de API:
 ### Modos (navegação da barra lateral)
 - **Frequência geral** / **Busca por mês** — análise dos diários de classe
   (comportamento descrito abaixo).
-- **Avaliação aluno (individual)** — troca o rótulo do upload para "Selecionar
-  histórico do aluno" e o botão para "Avaliar aluno". Envia o PDF do histórico
+- **Análise aluno (individual)** — troca o rótulo do upload para "Selecionar
+  histórico do aluno" e o botão para "Analisar aluno". Envia o PDF do histórico
   para `POST /analyze-historico` e mostra o resultado em **duas abas**:
   - **Visão geral** — cards reconstruindo o histórico do aluno, nesta ordem:
     (1) **dados do aluno** (matrícula e ano de ingresso em destaque) ao lado do
@@ -185,7 +185,7 @@ para **um** aluno, um resumo pronto para virar JSON de API:
     jspdf-autotable): cabeçalho institucional, dados do aluno, progresso,
     tabela de desempenho por semestre (com % de aprovação/reprovação) **+ o
     próprio gráfico**, e as três tabelas de disciplinas (com docente). O arquivo
-    sai como `avaliacao_<nome-do-aluno>_<matrícula>.pdf`.
+    sai como `analise_<nome-do-aluno>_<matrícula>.pdf`.
   - **JSON** — retorno bruto da API com botão "Copiar JSON".
 
   > Havia uma aba "Áreas temáticas" (classificação das disciplinas por eixo do
@@ -245,7 +245,7 @@ para **um** aluno, um resumo pronto para virar JSON de API:
 - PDF de frequência geral.
 - **PDF consolidado por aluno**: dados do aluno, disciplinas, série de
   frequência e gráfico.
-- **PDF da avaliação individual** (histórico): cabeçalho, dados do aluno,
+- **PDF da análise individual** (histórico): cabeçalho, dados do aluno,
   progresso do curso, desempenho por semestre (tabela + gráfico) e as tabelas de
   disciplinas aprovadas / a cursar / reprovadas (com docente) — usa
   `jspdf-autotable`.
