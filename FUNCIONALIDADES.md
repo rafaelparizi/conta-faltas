@@ -186,6 +186,15 @@ para **um** aluno, um resumo pronto para virar JSON de API:
     tabela de desempenho por semestre (com % de aprovação/reprovação) **+ o
     próprio gráfico**, e as três tabelas de disciplinas (com docente). O arquivo
     sai como `avaliacao_<nome-do-aluno>_<matrícula>.pdf`.
+  - **Áreas temáticas** — classifica as disciplinas do currículo em ~10 eixos
+    (Programação, Engenharia de Software, Banco de Dados, Infra e Redes,
+    Matemática e Lógica, Gestão e Governança, Fundamentos/Tec. Avançadas,
+    Formação e Ética, Prática e TCC, Eletivas) e mostra, para o aluno: um
+    **gráfico radar** (% aprovado / % aprovado + em curso por eixo) e um card
+    por área com barra de progresso, contagem por situação (aprovadas,
+    matriculadas, a refazer, a cursar) e a lista das disciplinas. A classificação
+    é do currículo BSI/São Borja; disciplinas não reconhecidas caem em "Não
+    classificadas". Casamento por nome normalizado (sem acento, sem preposições).
   - **JSON** — retorno bruto da API com botão "Copiar JSON".
   Trocar de modo limpa o arquivo selecionado.
 
