@@ -1111,6 +1111,16 @@
                     ${infoLinha('Prazo máximo de conclusão', j.prazo_maximo || '—')}
                     ${infoLinha('MC (média de conclusão)', _fmtNum(idx.MC))}
                     ${infoLinha('IRA', _fmtNum(idx.IRA))}
+                </div>
+                <div class="mt-4">
+                    <button onclick="gerarPdfHistorico()"
+                        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M12 10v6m0 0l-3-3m3 3l3-3M4 6a2 2 0 012-2h7l5 5v9a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
+                        </svg>
+                        Gerar relatório PDF
+                    </button>
                 </div>`);
 
             const colCodigo = { rot: 'Código', get: d => `<span class="font-mono text-xs">${d.codigo}</span>` };
@@ -1166,24 +1176,31 @@
                     Matriculado agora: <strong>${_fmtNum(ch.em_curso, 'h')}</strong> ·
                     Pendente (obrigatórias): <strong>${_fmtNum(ch.pendente, 'h')}</strong>
                 </p>
-                <p class="text-[0.7rem] text-slate-400 mt-1">${ch.obs || ''}</p>
-                <div class="mt-4">
-                    <button onclick="gerarPdfHistorico()"
-                        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M12 10v6m0 0l-3-3m3 3l3-3M4 6a2 2 0 012-2h7l5 5v9a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
-                        </svg>
-                        Gerar relatório PDF
-                    </button>
-                </div>`);
+                <p class="text-[0.7rem] text-slate-400 mt-1">${ch.obs || ''}</p>`);
+
+            // Disciplinas em que o aluno está matriculado no semestre corrente
+            const matriculadasAgora = (j.disciplinas_a_cursar || []).filter(d => d.matriculado_atualmente);
+            const listaMatriculadas = !matriculadasAgora.length
+                ? `<p class="text-sm text-slate-400 px-1 py-2">Nenhuma disciplina matriculada no momento.</p>`
+                : `<ul class="divide-y divide-slate-100 text-sm">${matriculadasAgora.map(d => `
+                    <li class="flex items-center justify-between gap-3 py-2">
+                        <div class="min-w-0">
+                            <p class="font-medium text-slate-700 truncate">${d.componente}</p>
+                            <p class="text-xs text-slate-400 truncate">${d.docente || '—'}</p>
+                        </div>
+                        <span class="text-xs text-slate-500 shrink-0">${_fmtNum(d.carga_horaria, 'h')}</span>
+                    </li>`).join('')}</ul>`;
+            const cardMatriculadas = _cardHist('Disciplinas do semestre corrente', matriculadasAgora.length, listaMatriculadas);
 
             // Desempenho por semestre (gráfico)
             const cardSemestre = _cardHist('Desempenho por semestre', null,
                 `<div class="h-[320px]"><canvas id="grafico-historico"></canvas></div>`);
 
             document.getElementById('hpanel-visao').innerHTML = `
-                <div class="grid gap-5 lg:grid-cols-[3fr_2fr] items-start">${cardDados}${cardProgresso}</div>
+                <div class="grid gap-5 lg:grid-cols-[3fr_2fr] items-start">
+                    ${cardDados}
+                    <div class="flex flex-col gap-5">${cardProgresso}${cardMatriculadas}</div>
+                </div>
                 ${cardSemestre}
                 <div class="grid gap-5 lg:grid-cols-2 items-start">${cardApr}${cardCursar}</div>
                 ${cardRep}`;
