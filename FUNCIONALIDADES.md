@@ -188,21 +188,28 @@ para **um** aluno, um resumo pronto para virar JSON de API:
     código, componente ou docente, com contador "N de N"). Disciplinas em que o
     aluno está matriculado agora recebem o badge "Matriculado".
   - **Status semestre atual** — dados resumidos do aluno e, abaixo, duas
-    colunas: à esquerda a lista das disciplinas em que está matriculado agora
-    (uma linha por disciplina, com botão **"Selecionar diário"** — upload do
-    PDF do diário daquela turma); à direita o card **"Performance no semestre
-    (frequência)"**. Um botão único **"Analisar diários enviados"** processa
-    todos os diários selecionados de uma vez: para cada um, chama
-    `POST /check-disciplines` (peso sugerido pela CH) e depois
-    `POST /analyze-frequency`, localiza a linha do aluno pela matrícula e
-    mostra, por disciplina, **aulas dadas**, **faltas** e **% de frequência**
-    (vermelho abaixo de 75%), com detalhamento por mês em "Ver por mês". O
-    card da direita consolida essas mesmas disciplinas num **gráfico de barras
-    horizontais** (uma barra por disciplina já analisada, verde/vermelha pelo
-    limiar de 75%, tooltip com aulas/faltas/frequência), atualizado a cada
-    diário processado; mostra um estado vazio até a primeira análise. Se a
-    matrícula não aparecer no diário enviado, avisa que pode ser o PDF errado
-    e a disciplina fica de fora do gráfico.
+    colunas: à esquerda o card "Disciplinas do semestre atual", à direita
+    **"Performance no semestre (frequência)"**. A leitura dos diários é em
+    **lote**: uma única caixa "Selecionar diários PDF" (upload múltiplo) no
+    topo do card esquerdo — o usuário sobe de uma vez todos os diários que
+    tiver, sem precisar indicar qual arquivo é de qual disciplina. Ao clicar
+    em **"Processar diários enviados"**, a disciplina de cada arquivo é
+    identificada automaticamente (`POST /check-disciplines`, uma chamada com
+    todos os arquivos) e o resultado de cada um cai na linha certa da lista
+    (localizado pelo **código** da disciplina, não pela ordem de upload);
+    a frequência é calculada com uma única chamada a `POST /analyze-frequency`
+    para o lote inteiro. Por disciplina mostra **aulas dadas**, **faltas** e
+    **% de frequência** (vermelho abaixo de 75%), com detalhamento por mês em
+    "Ver por mês". Diários que não correspondem a nenhuma disciplina do
+    semestre atual (código não bate) geram um aviso listando quais, sem travar
+    o processamento dos demais; processar um novo lote não apaga os resultados
+    de disciplinas de lotes anteriores. O card da direita consolida as
+    disciplinas já processadas num **gráfico de barras horizontais** (uma
+    barra por disciplina, verde/vermelha pelo limiar de 75%, tooltip com
+    aulas/faltas/frequência), atualizado a cada lote processado; mostra um
+    estado vazio até a primeira análise. Se a matrícula do aluno não aparecer
+    no diário identificado, avisa que pode ser o PDF errado e a disciplina
+    fica de fora do gráfico.
   - **JSON** — retorno bruto da API com botão "Copiar JSON".
 
   > Havia uma aba "Áreas temáticas" (classificação das disciplinas por eixo do

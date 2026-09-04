@@ -1019,7 +1019,6 @@
         let _historicoAtual = null;
         let graficoHistorico = null;
         let graficoSemestre = null;
-        let _semestreArquivos = {};   // codigo -> File do diário selecionado para aquela disciplina
         let _semestreResultados = {}; // codigo -> {aulas, faltas, pct} | null (não encontrado/erro)
 
         function trocarHistoricoTab(tab) {
@@ -1222,7 +1221,6 @@
         // disciplina e análise pontual (aulas dadas x faltas) deste aluno.
         // =========================================================
         function renderStatusSemestre(j) {
-            _semestreArquivos = {};
             _semestreResultados = {};
 
             const matriculadas = (j.disciplinas_a_cursar || []).filter(d => d.matriculado_atualmente);
@@ -1240,45 +1238,50 @@
             const linhas = !matriculadas.length
                 ? `<p class="text-sm text-slate-400 px-1 py-3">O aluno não está matriculado em nenhuma disciplina no momento.</p>`
                 : matriculadas.map(d => `
-                    <div class="flex flex-col lg:flex-row lg:items-start gap-3 py-4 border-b border-slate-100 last:border-b-0">
-                        <div class="flex-1 min-w-0">
-                            <p class="font-semibold text-slate-800">${d.componente}</p>
-                            <p class="text-xs text-slate-500 mt-0.5">
-                                Cód: <span class="font-mono">${d.codigo}</span> ·
-                                CH: ${_fmtNum(d.carga_horaria, 'h')} ·
-                                Docente: ${d.docente || '—'}
-                            </p>
-                            <div id="resultado-sem-${d.codigo}"></div>
-                        </div>
-                        <div class="shrink-0 flex flex-col items-start lg:items-end gap-1">
-                            <label for="arquivo-sem-${d.codigo}"
-                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer whitespace-nowrap transition">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                        d="M7 16a4 4 0 01-.88-7.9A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 13l3-3 3 3M12 10v11" />
-                                </svg>
-                                Selecionar diário
-                            </label>
-                            <input type="file" id="arquivo-sem-${d.codigo}" accept=".pdf" class="hidden"
-                                onchange="_selecionarDiarioSemestre('${d.codigo}', this)">
-                            <span id="arquivo-sem-info-${d.codigo}" class="text-[0.7rem] text-slate-400 max-w-[170px] truncate"></span>
+                    <div class="py-4 border-b border-slate-100 last:border-b-0">
+                        <p class="font-semibold text-slate-800">${d.componente}</p>
+                        <p class="text-xs text-slate-500 mt-0.5">
+                            Cód: <span class="font-mono">${d.codigo}</span> ·
+                            CH: ${_fmtNum(d.carga_horaria, 'h')} ·
+                            Docente: ${d.docente || '—'}
+                        </p>
+                        <div id="resultado-sem-${d.codigo}">
+                            <p class="text-xs text-slate-400 mt-1">Nenhum diário enviado ainda.</p>
                         </div>
                     </div>`).join('');
 
-            const rodape = !matriculadas.length ? '' : `
-                <div class="pt-4 flex items-center gap-3 flex-wrap">
-                    <button id="btn-analisar-semestre" onclick="analisarDiariosSemestre()" disabled
-                        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            const uploadLote = !matriculadas.length ? '' : `
+                <div class="mb-2">
+                    <label for="arquivos-semestre"
+                        class="block border-2 border-dashed border-slate-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition">
+                        <svg class="w-6 h-6 mx-auto text-slate-400 mb-1" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                d="M7 16a4 4 0 01-.88-7.9A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 13l3-3 3 3M12 10v11" />
                         </svg>
-                        Analisar diários enviados
-                    </button>
-                    <span class="text-xs text-slate-400">Selecione o diário de cada disciplina antes de analisar.</span>
-                </div>`;
+                        <span class="text-xs font-semibold text-slate-600 block">Selecionar diários PDF</span>
+                        <span class="text-[0.7rem] text-slate-400">Envie todos os que tiver — a disciplina de cada um é
+                            identificada automaticamente</span>
+                    </label>
+                    <input type="file" id="arquivos-semestre" multiple accept=".pdf" class="hidden"
+                        onchange="_selecionarDiariosSemestre(this)">
+                    <p id="arquivos-semestre-info" class="text-[0.7rem] text-slate-500 mt-2 px-1 break-words"></p>
+                    <div class="flex items-center gap-3 flex-wrap mt-3">
+                        <button id="btn-analisar-semestre" onclick="analisarDiariosSemestre()" disabled
+                            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Processar diários enviados
+                        </button>
+                        <span class="text-xs text-slate-400">Cada diário é identificado automaticamente pela
+                            disciplina.</span>
+                    </div>
+                </div>
+                <div class="border-t border-slate-100 mt-2"></div>`;
 
-            const cardDisciplinas = _cardHist('Disciplinas do semestre atual', matriculadas.length, linhas + rodape);
+            const cardDisciplinas = _cardHist('Disciplinas do semestre atual', matriculadas.length, uploadLote + linhas);
 
             const cardGraficoSemestre = _cardHist('Performance no semestre (frequência)', null, `
                 <div id="grafico-semestre-vazio" class="text-center py-16 text-slate-400 text-sm">
@@ -1354,64 +1357,90 @@
             });
         }
 
-        function _selecionarDiarioSemestre(codigo, inputEl) {
-            const f = inputEl.files[0] || null;
-            _semestreArquivos[codigo] = f;
-            const info = document.getElementById('arquivo-sem-info-' + codigo);
-            if (info) info.textContent = f ? f.name : '';
+        function _selecionarDiariosSemestre(inputEl) {
+            const n = inputEl.files.length;
+            const info = document.getElementById('arquivos-semestre-info');
+            if (info) info.textContent = n === 0 ? '' : (n === 1 ? inputEl.files[0].name : `${n} arquivos selecionados`);
             const btn = document.getElementById('btn-analisar-semestre');
-            if (btn) btn.disabled = !Object.values(_semestreArquivos).some(Boolean);
+            if (btn) btn.disabled = n === 0;
         }
 
         async function analisarDiariosSemestre() {
             const j = _historicoAtual;
             if (!j) return;
-            const pendentes = Object.entries(_semestreArquivos).filter(([, f]) => f);
-            if (!pendentes.length) { mostrarAviso('Selecione ao menos um diário para analisar.', 'aviso'); return; }
+            const input = document.getElementById('arquivos-semestre');
+            const arquivos = input ? Array.from(input.files) : [];
+            if (!arquivos.length) { mostrarAviso('Selecione ao menos um diário para processar.', 'aviso'); return; }
+
+            const matriculadas = (j.disciplinas_a_cursar || []).filter(d => d.matriculado_atualmente);
+            const codigosMatriculados = new Set(matriculadas.map(d => d.codigo));
 
             const btn = document.getElementById('btn-analisar-semestre');
             const original = btn ? btn.innerHTML : '';
-            if (btn) { btn.disabled = true; btn.textContent = 'Analisando…'; }
+            if (btn) { btn.disabled = true; btn.textContent = 'Processando…'; }
 
-            await Promise.all(pendentes.map(([codigo, file]) => _analisarDiarioDaDisciplina(j, codigo, file)));
-
-            if (btn) { btn.disabled = false; btn.innerHTML = original; }
-        }
-
-        async function _analisarDiarioDaDisciplina(j, codigo, file) {
-            const painel = document.getElementById('resultado-sem-' + codigo);
-            if (painel) painel.innerHTML = `<p class="text-xs text-slate-400 mt-2">Analisando…</p>`;
             try {
+                // 1) identifica a disciplina (código) de cada diário enviado, de uma vez
                 const fdCheck = new FormData();
-                fdCheck.append('arquivos', file);
+                arquivos.forEach(f => fdCheck.append('arquivos', f));
                 const resCheck = await fetch(`${API_URL}/check-disciplines`, { method: 'POST', body: fdCheck });
-                const disc = await resCheck.json();
-                const meta = Array.isArray(disc) ? (disc[0] || {}) : {};
-                const nivel = meta.nivel_sugerido || 'superior';
-                const peso = meta.peso_sugerido || sugerirPeso(meta.carga_horaria, nivel);
-                const pesos = {};
-                if (meta.codigo) pesos[meta.codigo] = peso;
+                const detectadas = await resCheck.json();
+                if (!Array.isArray(detectadas)) throw new Error((detectadas && detectadas.erro) || 'Resposta inesperada da API.');
 
+                const pesos = {};
+                detectadas.forEach(d => {
+                    if (!d.codigo) return;
+                    const nivel = d.nivel_sugerido || 'superior';
+                    pesos[d.codigo] = d.peso_sugerido || sugerirPeso(d.carga_horaria, nivel);
+                });
+
+                detectadas
+                    .filter(d => d.codigo && codigosMatriculados.has(d.codigo))
+                    .forEach(d => {
+                        const painel = document.getElementById('resultado-sem-' + d.codigo);
+                        if (painel) painel.innerHTML = `<p class="text-xs text-slate-400 mt-2">Analisando…</p>`;
+                    });
+
+                // 2) processa a frequência de todos os diários enviados de uma vez
                 const fd = new FormData();
-                fd.append('arquivos', file);
+                arquivos.forEach(f => fd.append('arquivos', f));
                 fd.append('pesos', JSON.stringify(pesos));
                 const res = await fetch(`${API_URL}/analyze-frequency`, { method: 'POST', body: fd });
                 const linhas = await res.json();
                 if (!Array.isArray(linhas)) throw new Error((linhas && linhas.erro) || 'Resposta inesperada da API.');
 
-                const registro = linhas.find(r => String(r['Matrícula'] || '').trim() === String(j.matricula || '').trim());
-                _semestreResultados[codigo] = registro ? {
-                    aulas: Number(registro['Total_Aulas_Geral']) || 0,
-                    faltas: Number(registro['Total_Dias_Faltados_Geral']) || 0,
-                    pct: registro['%_Presença_Geral'],
-                } : null;
-                _renderResultadoSemestre(codigo, registro);
+                // 3) distribui o resultado do aluno para cada disciplina cujo diário subiu neste lote
+                matriculadas.forEach(d => {
+                    const foiEnviado = detectadas.some(det => det.codigo === d.codigo);
+                    if (!foiEnviado) return; // preserva resultado de um lote anterior, se houver
+                    const registro = linhas.find(r =>
+                        String(r['Código'] || '').trim() === d.codigo &&
+                        String(r['Matrícula'] || '').trim() === String(j.matricula || '').trim()
+                    );
+                    _semestreResultados[d.codigo] = registro ? {
+                        aulas: Number(registro['Total_Aulas_Geral']) || 0,
+                        faltas: Number(registro['Total_Dias_Faltados_Geral']) || 0,
+                        pct: registro['%_Presença_Geral'],
+                    } : null;
+                    _renderResultadoSemestre(d.codigo, registro);
+                });
                 _renderGraficoSemestre();
+
+                const foraDoSemestre = detectadas.filter(d => d.codigo && !codigosMatriculados.has(d.codigo));
+                if (foraDoSemestre.length) {
+                    const nomes = foraDoSemestre.map(d => d.disciplina || d.arquivo).join(', ');
+                    mostrarAviso(
+                        foraDoSemestre.length === 1
+                            ? `O diário "${nomes}" não corresponde a nenhuma disciplina do semestre atual.`
+                            : `${foraDoSemestre.length} diários não correspondem a disciplinas do semestre atual: ${nomes}.`,
+                        'aviso'
+                    );
+                }
             } catch (e) {
                 console.error(e);
-                _semestreResultados[codigo] = null;
-                if (painel) painel.innerHTML = `<p class="text-xs text-red-600 mt-2">Erro ao analisar: ${e.message}</p>`;
-                _renderGraficoSemestre();
+                mostrarAviso('Erro ao processar os diários: ' + e.message, 'erro');
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = original; }
             }
         }
 
