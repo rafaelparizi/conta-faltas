@@ -1189,14 +1189,14 @@
             const matriculadasAgora = (j.disciplinas_a_cursar || []).filter(d => d.matriculado_atualmente);
             const listaMatriculadas = !matriculadasAgora.length
                 ? `<p class="text-sm text-slate-400 px-1 py-2">Nenhuma disciplina matriculada no momento.</p>`
-                : `<ul class="divide-y divide-slate-100 text-sm">${matriculadasAgora.map(d => `
-                    <li class="flex items-center justify-between gap-3 py-2">
-                        <div class="min-w-0">
-                            <p class="font-medium text-slate-700 truncate">${d.componente}</p>
-                            <p class="text-xs text-slate-400 truncate">${d.docente || '—'}</p>
+                : `<div class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">${matriculadasAgora.map(d => `
+                    <div class="border border-slate-200 rounded-lg p-2.5 bg-white">
+                        <p class="text-sm font-semibold text-slate-800 leading-snug line-clamp-2">${d.componente}</p>
+                        <div class="flex items-center justify-between gap-2 mt-1.5">
+                            <p class="text-[11px] text-slate-400 truncate">${d.docente || '—'}</p>
+                            <span class="text-[10px] text-slate-500 font-bold shrink-0">${_fmtNum(d.carga_horaria, 'h')}</span>
                         </div>
-                        <span class="text-xs text-slate-500 shrink-0">${_fmtNum(d.carga_horaria, 'h')}</span>
-                    </li>`).join('')}</ul>`;
+                    </div>`).join('')}</div>`;
             const cardMatriculadas = _cardHist('Disciplinas do semestre corrente', matriculadasAgora.length, listaMatriculadas);
 
             // Desempenho por semestre (gráfico)

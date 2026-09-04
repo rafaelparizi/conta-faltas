@@ -180,7 +180,10 @@ para **um** aluno, um resumo pronto para virar JSON de API:
     três tabelas de disciplinas (com docente). Arquivo
     `analise_<nome-do-aluno>_<matrícula>.pdf`; (2) **progresso do curso** (% de
     conclusão estimado + CH faltante com barra) e, logo abaixo na mesma coluna,
-    (2b) **disciplinas do semestre corrente** (as com `matriculado_atualmente`);
+    (2b) **disciplinas do semestre corrente** (as com `matriculado_atualmente`,
+    em pequenos cards numa grade que se ajusta à largura da coluna — evita que
+    a lista fique desproporcionalmente mais alta que o card "Dados do aluno"
+    ao lado);
     (3) **desempenho por semestre** (gráfico Chart.js: linha da média + barras
     de aprovados/reprovados); (4) **disciplinas aprovadas** e **a cursar** lado
     a lado; (5) **disciplinas reprovadas** abaixo, em largura total. Cada card
