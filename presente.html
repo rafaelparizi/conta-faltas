@@ -635,10 +635,14 @@
                     <div class="border-b border-slate-200 mb-6 flex gap-1 flex-wrap">
                         <button id="htab-visao" onclick="trocarHistoricoTab('visao')" class="ctab ctab-ativo">Visão
                             geral</button>
+                        <button id="htab-semestre" onclick="trocarHistoricoTab('semestre')" class="ctab">Status
+                            semestre atual</button>
                         <button id="htab-json" onclick="trocarHistoricoTab('json')" class="ctab">JSON</button>
                     </div>
 
                     <div id="hpanel-visao" class="space-y-5"></div>
+
+                    <div id="hpanel-semestre" class="hidden space-y-5"></div>
 
                     <div id="hpanel-json" class="hidden bg-white rounded-xl border border-slate-200 overflow-hidden">
                         <div
@@ -997,6 +1001,7 @@
                 document.getElementById('historico-conteudo').classList.remove('hidden');
                 trocarHistoricoTab('visao');
                 renderHistoricoCards(json);
+                renderStatusSemestre(json);
             } catch (e) {
                 mostrarAviso("Erro ao analisar o histórico: " + e.message, 'erro');
                 document.getElementById('historico-vazio').classList.remove('hidden');
@@ -1013,9 +1018,10 @@
 
         let _historicoAtual = null;
         let graficoHistorico = null;
+        let _semestreArquivos = {};   // codigo -> File do diário selecionado para aquela disciplina
 
         function trocarHistoricoTab(tab) {
-            const abas = ['visao', 'json'];
+            const abas = ['visao', 'semestre', 'json'];
             if (!abas.includes(tab)) tab = 'visao';
             abas.forEach(a => {
                 document.getElementById('htab-' + a).classList.toggle('ctab-ativo', a === tab);
@@ -1206,6 +1212,181 @@
                 ${cardRep}`;
 
             _renderGraficoHistorico(j.desempenho_por_semestre || []);
+        }
+
+        // =========================================================
+        // Aba "Status semestre atual": dados do aluno + disciplinas em que
+        // está matriculado agora, cada uma com upload do diário daquela
+        // disciplina e análise pontual (aulas dadas x faltas) deste aluno.
+        // =========================================================
+        function renderStatusSemestre(j) {
+            _semestreArquivos = {};
+
+            const matriculadas = (j.disciplinas_a_cursar || []).filter(d => d.matriculado_atualmente);
+
+            const cardDados = _cardHist('Dados do aluno', null, `
+                <p class="text-lg font-bold text-slate-900">${j.aluno || '—'}</p>
+                <p class="text-sm text-slate-500 mb-3">${j.curso || '—'}</p>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                    <div><span class="text-slate-400 font-semibold block text-xs uppercase">Matrícula</span>${j.matricula || '—'}</div>
+                    <div><span class="text-slate-400 font-semibold block text-xs uppercase">Status</span>${j.status_matricula || '—'}</div>
+                    <div><span class="text-slate-400 font-semibold block text-xs uppercase">Período atual</span>${_fmtNum(j.periodo_atual, 'º')}</div>
+                    <div><span class="text-slate-400 font-semibold block text-xs uppercase">Ano de ingresso</span>${j.periodo_ingresso || '—'}</div>
+                </div>`);
+
+            const linhas = !matriculadas.length
+                ? `<p class="text-sm text-slate-400 px-1 py-3">O aluno não está matriculado em nenhuma disciplina no momento.</p>`
+                : matriculadas.map(d => `
+                    <div class="flex flex-col sm:flex-row sm:items-start gap-3 py-4 border-b border-slate-100 last:border-b-0">
+                        <div class="flex-1 min-w-0">
+                            <p class="font-semibold text-slate-800">${d.componente}</p>
+                            <p class="text-xs text-slate-500 mt-0.5">
+                                Cód: <span class="font-mono">${d.codigo}</span> ·
+                                CH: ${_fmtNum(d.carga_horaria, 'h')} ·
+                                Docente: ${d.docente || '—'}
+                            </p>
+                            <div id="resultado-sem-${d.codigo}"></div>
+                        </div>
+                        <div class="shrink-0 flex flex-col items-start sm:items-end gap-1">
+                            <label for="arquivo-sem-${d.codigo}"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer whitespace-nowrap transition">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M7 16a4 4 0 01-.88-7.9A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 13l3-3 3 3M12 10v11" />
+                                </svg>
+                                Selecionar diário
+                            </label>
+                            <input type="file" id="arquivo-sem-${d.codigo}" accept=".pdf" class="hidden"
+                                onchange="_selecionarDiarioSemestre('${d.codigo}', this)">
+                            <span id="arquivo-sem-info-${d.codigo}" class="text-[0.7rem] text-slate-400 max-w-[170px] truncate"></span>
+                        </div>
+                    </div>`).join('');
+
+            const rodape = !matriculadas.length ? '' : `
+                <div class="pt-4 flex items-center gap-3 flex-wrap">
+                    <button id="btn-analisar-semestre" onclick="analisarDiariosSemestre()" disabled
+                        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Analisar diários enviados
+                    </button>
+                    <span class="text-xs text-slate-400">Selecione o diário de cada disciplina antes de analisar.</span>
+                </div>`;
+
+            const cardDisciplinas = _cardHist('Disciplinas do semestre atual', matriculadas.length, linhas + rodape);
+
+            document.getElementById('hpanel-semestre').innerHTML = cardDados + cardDisciplinas;
+        }
+
+        function _selecionarDiarioSemestre(codigo, inputEl) {
+            const f = inputEl.files[0] || null;
+            _semestreArquivos[codigo] = f;
+            const info = document.getElementById('arquivo-sem-info-' + codigo);
+            if (info) info.textContent = f ? f.name : '';
+            const btn = document.getElementById('btn-analisar-semestre');
+            if (btn) btn.disabled = !Object.values(_semestreArquivos).some(Boolean);
+        }
+
+        async function analisarDiariosSemestre() {
+            const j = _historicoAtual;
+            if (!j) return;
+            const pendentes = Object.entries(_semestreArquivos).filter(([, f]) => f);
+            if (!pendentes.length) { mostrarAviso('Selecione ao menos um diário para analisar.', 'aviso'); return; }
+
+            const btn = document.getElementById('btn-analisar-semestre');
+            const original = btn ? btn.innerHTML : '';
+            if (btn) { btn.disabled = true; btn.textContent = 'Analisando…'; }
+
+            await Promise.all(pendentes.map(([codigo, file]) => _analisarDiarioDaDisciplina(j, codigo, file)));
+
+            if (btn) { btn.disabled = false; btn.innerHTML = original; }
+        }
+
+        async function _analisarDiarioDaDisciplina(j, codigo, file) {
+            const painel = document.getElementById('resultado-sem-' + codigo);
+            if (painel) painel.innerHTML = `<p class="text-xs text-slate-400 mt-2">Analisando…</p>`;
+            try {
+                const fdCheck = new FormData();
+                fdCheck.append('arquivos', file);
+                const resCheck = await fetch(`${API_URL}/check-disciplines`, { method: 'POST', body: fdCheck });
+                const disc = await resCheck.json();
+                const meta = Array.isArray(disc) ? (disc[0] || {}) : {};
+                const nivel = meta.nivel_sugerido || 'superior';
+                const peso = meta.peso_sugerido || sugerirPeso(meta.carga_horaria, nivel);
+                const pesos = {};
+                if (meta.codigo) pesos[meta.codigo] = peso;
+
+                const fd = new FormData();
+                fd.append('arquivos', file);
+                fd.append('pesos', JSON.stringify(pesos));
+                const res = await fetch(`${API_URL}/analyze-frequency`, { method: 'POST', body: fd });
+                const linhas = await res.json();
+                if (!Array.isArray(linhas)) throw new Error((linhas && linhas.erro) || 'Resposta inesperada da API.');
+
+                const registro = linhas.find(r => String(r['Matrícula'] || '').trim() === String(j.matricula || '').trim());
+                _renderResultadoSemestre(codigo, registro);
+            } catch (e) {
+                console.error(e);
+                if (painel) painel.innerHTML = `<p class="text-xs text-red-600 mt-2">Erro ao analisar: ${e.message}</p>`;
+            }
+        }
+
+        function _renderResultadoSemestre(codigo, registro) {
+            const painel = document.getElementById('resultado-sem-' + codigo);
+            if (!painel) return;
+
+            if (!registro) {
+                painel.innerHTML = `<p class="text-xs text-amber-600 mt-2">
+                    Aluno (matrícula ${_historicoAtual ? _historicoAtual.matricula : ''}) não encontrado neste diário.
+                    Confira se o PDF é o diário correto desta disciplina.</p>`;
+                return;
+            }
+
+            const aulas = _fmtNum(registro['Total_Aulas_Geral']);
+            const faltas = _fmtNum(registro['Total_Dias_Faltados_Geral']);
+            const pct = registro['%_Presença_Geral'];
+            const corPct = (pct !== null && pct !== undefined && pct < LIMIAR_PRESENCA) ? 'text-red-600' : 'text-green-600';
+
+            const pill = (rot, val, cls) => `
+                <div class="text-center px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 min-w-[92px]">
+                    <p class="text-[0.65rem] font-bold uppercase tracking-wide text-slate-400">${rot}</p>
+                    <p class="text-base font-extrabold ${cls}">${val}</p>
+                </div>`;
+
+            const meses = ordemMeses.filter(m => registro[`${m}_Total_Aulas`] !== undefined);
+            const linhasMes = meses.map(m => `
+                <tr class="border-t border-slate-100">
+                    <td class="px-2 py-1">${m}</td>
+                    <td class="px-2 py-1 text-center">${_fmtNum(registro[`${m}_Total_Aulas`])}</td>
+                    <td class="px-2 py-1 text-center">${_fmtNum(registro[`${m}_Dias_Faltados`])}</td>
+                    <td class="px-2 py-1 text-center">${_fmtNum(registro[`${m}_%_Presença`], '%')}</td>
+                </tr>`).join('');
+
+            painel.innerHTML = `
+                <div class="flex flex-wrap gap-2 mt-3">
+                    ${pill('Aulas dadas', aulas, 'text-slate-800')}
+                    ${pill('Faltas', faltas, 'text-slate-800')}
+                    ${pill('Frequência', _fmtNum(pct, '%'), corPct)}
+                </div>
+                ${meses.length ? `
+                    <details class="mt-2">
+                        <summary class="text-xs font-semibold text-blue-600 cursor-pointer select-none">Ver por mês</summary>
+                        <div class="overflow-x-auto mt-2 max-w-md">
+                            <table class="w-full text-xs border-collapse">
+                                <thead class="bg-slate-50">
+                                    <tr>
+                                        <th class="px-2 py-1 text-left">Mês</th>
+                                        <th class="px-2 py-1">Aulas</th>
+                                        <th class="px-2 py-1">Faltas</th>
+                                        <th class="px-2 py-1">%</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${linhasMes}</tbody>
+                            </table>
+                        </div>
+                    </details>` : ''}`;
         }
 
         function _configGraficoHistorico(semestres, opts) {

@@ -171,21 +171,32 @@ para **um** aluno, um resumo pronto para virar JSON de API:
   (comportamento descrito abaixo).
 - **Análise aluno (individual)** — troca o rótulo do upload para "Selecionar
   histórico do aluno" e o botão para "Analisar aluno". Envia o PDF do histórico
-  para `POST /analyze-historico` e mostra o resultado em **duas abas**:
+  para `POST /analyze-historico` e mostra o resultado em **três abas**:
   - **Visão geral** — cards reconstruindo o histórico do aluno, nesta ordem:
-    (1) **dados do aluno** (matrícula e ano de ingresso em destaque) ao lado do
-    (2) **progresso do curso** (% de conclusão estimado + CH faltante com barra);
-    (3) **desempenho por semestre** (gráfico Chart.js: linha da média + barras de
-    aprovados/reprovados); (4) **disciplinas aprovadas** e **a cursar** lado a
-    lado; (5) **disciplinas reprovadas** abaixo, em largura total. Cada card de
-    disciplinas mostra o **docente** e tem **campo de busca** (filtra por código,
-    componente ou docente, com contador "N de N"). Disciplinas em que o aluno
-    está matriculado agora recebem o badge "Matriculado". No canto inferior
-    esquerdo do card de progresso há o botão **"Gerar relatório PDF"** (jsPDF +
-    jspdf-autotable): cabeçalho institucional, dados do aluno, progresso,
-    tabela de desempenho por semestre (com % de aprovação/reprovação) **+ o
-    próprio gráfico**, e as três tabelas de disciplinas (com docente). O arquivo
-    sai como `analise_<nome-do-aluno>_<matrícula>.pdf`.
+    (1) **dados do aluno** (matrícula e ano de ingresso em destaque), com o
+    botão **"Gerar relatório PDF"** (jsPDF + jspdf-autotable) dentro do card:
+    cabeçalho institucional, dados do aluno, progresso, tabela de desempenho
+    por semestre (com % de aprovação/reprovação) **+ o próprio gráfico**, e as
+    três tabelas de disciplinas (com docente). Arquivo
+    `analise_<nome-do-aluno>_<matrícula>.pdf`; (2) **progresso do curso** (% de
+    conclusão estimado + CH faltante com barra) e, logo abaixo na mesma coluna,
+    (2b) **disciplinas do semestre corrente** (as com `matriculado_atualmente`);
+    (3) **desempenho por semestre** (gráfico Chart.js: linha da média + barras
+    de aprovados/reprovados); (4) **disciplinas aprovadas** e **a cursar** lado
+    a lado; (5) **disciplinas reprovadas** abaixo, em largura total. Cada card
+    de disciplinas mostra o **docente** e tem **campo de busca** (filtra por
+    código, componente ou docente, com contador "N de N"). Disciplinas em que o
+    aluno está matriculado agora recebem o badge "Matriculado".
+  - **Status semestre atual** — dados resumidos do aluno e, para cada
+    disciplina em que está matriculado agora, uma linha com botão **"Selecionar
+    diário"** (upload do PDF do diário daquela disciplina). Um botão único
+    **"Analisar diários enviados"** processa todos os diários selecionados de
+    uma vez: para cada um, chama `POST /check-disciplines` (peso sugerido pela
+    CH) e depois `POST /analyze-frequency`, localiza a linha do aluno pela
+    matrícula e mostra, por disciplina, **aulas dadas**, **faltas** e
+    **% de frequência** (vermelho abaixo de 75%), com detalhamento por mês em
+    "Ver por mês". Se a matrícula não aparecer no diário enviado, avisa que
+    pode ser o PDF errado.
   - **JSON** — retorno bruto da API com botão "Copiar JSON".
 
   > Havia uma aba "Áreas temáticas" (classificação das disciplinas por eixo do
