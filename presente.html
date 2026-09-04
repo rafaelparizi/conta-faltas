@@ -730,6 +730,39 @@
         </div>
     </div>
 
+    <div id="modal-aviso" class="hidden fixed inset-0 z-[80] bg-black/60 items-center justify-center p-4"
+        onclick="fecharAviso(event)">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden" onclick="event.stopPropagation()">
+            <div class="p-6 text-center">
+                <div id="aviso-icone-wrap" class="mx-auto mb-4 w-14 h-14 rounded-full flex items-center justify-center">
+                    <svg id="aviso-icone-erro" class="hidden w-7 h-7 text-red-600" fill="none" stroke="currentColor"
+                        stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                    </svg>
+                    <svg id="aviso-icone-aviso" class="hidden w-7 h-7 text-amber-600" fill="none" stroke="currentColor"
+                        stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                    </svg>
+                    <svg id="aviso-icone-info" class="hidden w-7 h-7 text-blue-600" fill="none" stroke="currentColor"
+                        stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+                    </svg>
+                </div>
+                <p id="aviso-titulo" class="font-bold text-slate-900 mb-1"></p>
+                <p id="aviso-mensagem" class="text-sm text-slate-600 leading-relaxed"></p>
+            </div>
+            <div class="px-6 pb-6">
+                <button onclick="fecharAviso()"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition">
+                    Entendi
+                </button>
+            </div>
+        </div>
+    </div>
+
     <img id="logo-iffar-footer" src="iffar-horizontal.png" alt="Logo IFFar" class="hidden">
 
     <script>
@@ -746,6 +779,36 @@
 
         // const API_URL = "http://127.0.0.1:5001";
         const API_URL = "https://conta-faltas.vercel.app";
+
+        // ===== Diálogo de aviso estilizado (substitui o alert() nativo) =====
+        function mostrarAviso(mensagem, tipo = 'aviso', titulo = null) {
+            const titulos = { erro: 'Ops, algo deu errado', aviso: 'Atenção', info: 'Aviso' };
+            const cores = { erro: 'bg-red-100', aviso: 'bg-amber-100', info: 'bg-blue-100' };
+
+            document.getElementById('aviso-titulo').textContent = titulo || titulos[tipo] || titulos.aviso;
+            document.getElementById('aviso-mensagem').textContent = mensagem;
+
+            ['erro', 'aviso', 'info'].forEach(t => {
+                document.getElementById('aviso-icone-' + t).classList.toggle('hidden', t !== tipo);
+            });
+            const wrap = document.getElementById('aviso-icone-wrap');
+            wrap.className = 'mx-auto mb-4 w-14 h-14 rounded-full flex items-center justify-center ' + (cores[tipo] || cores.aviso);
+
+            const modal = document.getElementById('modal-aviso');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function fecharAviso(event) {
+            if (event && event.target !== document.getElementById('modal-aviso')) return;
+            const modal = document.getElementById('modal-aviso');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !document.getElementById('modal-aviso').classList.contains('hidden')) fecharAviso();
+        });
 
         let dadosTabela = [];
         let cacheFrequencia = [];
@@ -935,7 +998,7 @@
                 trocarHistoricoTab('visao');
                 renderHistoricoCards(json);
             } catch (e) {
-                alert("Erro ao analisar o histórico: " + e.message);
+                mostrarAviso("Erro ao analisar o histórico: " + e.message, 'erro');
                 document.getElementById('historico-vazio').classList.remove('hidden');
                 console.error(e);
             } finally {
@@ -1189,7 +1252,7 @@
 
         async function gerarPdfHistorico() {
             const j = _historicoAtual;
-            if (!j) { alert('Avalie um histórico primeiro.'); return; }
+            if (!j) { mostrarAviso('Analise um histórico primeiro.', 'aviso'); return; }
 
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('p', 'mm', 'a4');
@@ -1315,7 +1378,7 @@
         async function iniciarProcessamento() {
             const files = document.getElementById('arquivos').files;
             if (files.length === 0) {
-                alert(modoApp === 'historico' ? "Selecione o PDF do histórico do aluno" : "Selecione ao menos um PDF");
+                mostrarAviso(modoApp === 'historico' ? "Selecione o PDF do histórico do aluno" : "Selecione ao menos um PDF", 'aviso');
                 return;
             }
             if (modoApp === 'historico') { await processarHistorico(); return; }
@@ -1349,7 +1412,7 @@
                     await executarProcessamento();
                 }
             } catch (e) {
-                alert("Erro ao verificar disciplinas: " + e.message);
+                mostrarAviso("Erro ao verificar disciplinas: " + e.message, 'erro');
                 document.getElementById('loading').classList.add('hidden');
                 console.error(e);
             }
@@ -1450,7 +1513,7 @@
                 paginaAtual = 1;
                 filtrarTabela();
             } catch (e) {
-                alert("Erro na API");
+                mostrarAviso("Erro na API", 'erro');
                 console.error(e);
             } finally {
                 document.getElementById('loading').classList.add('hidden');
@@ -1512,10 +1575,10 @@
 
         function abrirModalConsolidadoAluno(matricula) {
             registrosFiltradosAluno = dadosTabela.filter(item => String(item.Matrícula) === String(matricula));
-            if (registrosFiltradosAluno.length === 0) { alert("Nenhum dado encontrado para esta matrícula."); return; }
+            if (registrosFiltradosAluno.length === 0) { mostrarAviso("Nenhum dado encontrado para esta matrícula.", 'aviso'); return; }
             const testeSerie = obterSerieTemporal(registrosFiltradosAluno[0]);
             if (testeSerie.valores.length === 0) {
-                alert("Atenção: O gráfico temporal requer os dados da aba 'Frequência Geral'. Processe os arquivos na aba anterior para visualizar as linhas de tendência.");
+                mostrarAviso("O gráfico temporal requer os dados da aba 'Frequência Geral'. Processe os arquivos na aba anterior para visualizar as linhas de tendência.", 'aviso');
                 return;
             }
             const aluno = registrosFiltradosAluno[0];
@@ -1612,7 +1675,7 @@
             const dadosParaPdf = [...dadosFiltradosAtuais];
             const logoImg = document.getElementById('logo-iffar-footer');
             const mesReferencia = document.getElementById('label-mes').innerText;
-            if (!dadosParaPdf.length) { alert("Não há dados para gerar o PDF."); return; }
+            if (!dadosParaPdf.length) { mostrarAviso("Não há dados para gerar o PDF.", 'aviso'); return; }
             const margemEsq = 14, larguraUtil = 182;
             let y = 20;
             const desenharCabecalhoMensal = async () => {
@@ -1656,7 +1719,7 @@
             const doc = new jsPDF('p', 'mm', 'a4');
             const dadosParaPdf = [...dadosFiltradosAtuais];
             const logoImg = document.getElementById('logo-iffar-footer');
-            if (!dadosParaPdf.length) { alert("Não há dados para gerar o PDF."); return; }
+            if (!dadosParaPdf.length) { mostrarAviso("Não há dados para gerar o PDF.", 'aviso'); return; }
             const margemEsq = 14, larguraUtil = 182;
             let y = 20;
             const desenharCabecalhoPagina = async () => {
@@ -1852,7 +1915,7 @@
 
         async function gerarPdfConsolidadoAluno() {
             if (!registrosFiltradosAluno || registrosFiltradosAluno.length === 0) {
-                alert("Nenhum dado encontrado para gerar o PDF consolidado.");
+                mostrarAviso("Nenhum dado encontrado para gerar o PDF consolidado.", 'aviso');
                 return;
             }
 
