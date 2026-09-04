@@ -215,6 +215,10 @@ para **um** aluno, um resumo pronto para virar JSON de API:
     fica de fora do gráfico.
   - **JSON** — retorno bruto da API com botão "Copiar JSON".
 
+  As abas **Visão geral** e **Status semestre atual** têm um botão **"Ajuda"**
+  (canto superior direito do conteúdo) que abre um diálogo explicando os
+  elementos daquela página especificamente.
+
   > Havia uma aba "Áreas temáticas" (classificação das disciplinas por eixo do
   > currículo) — **removida** por ser específica do curso BSI/São Borja; a
   > ferramenta deve valer para qualquer curso. Histórico no git (`57aff17`).

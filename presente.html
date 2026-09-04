@@ -767,6 +767,28 @@
         </div>
     </div>
 
+    <div id="modal-ajuda" class="hidden fixed inset-0 z-[80] bg-black/60 items-center justify-center p-4"
+        onclick="fecharAjuda(event)">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onclick="event.stopPropagation()">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h3 id="ajuda-titulo" class="font-bold text-slate-900"></h3>
+            </div>
+            <div id="ajuda-conteudo" class="px-6 py-5 text-sm text-slate-600 leading-relaxed"></div>
+            <div class="px-6 pb-6">
+                <button onclick="fecharAjuda()"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition">
+                    Entendi
+                </button>
+            </div>
+        </div>
+    </div>
+
     <img id="logo-iffar-footer" src="iffar-horizontal.png" alt="Logo IFFar" class="hidden">
 
     <script>
@@ -810,8 +832,65 @@
             modal.classList.remove('flex');
         }
 
+        // ===== Diálogo de ajuda por página (aba) da análise individual =====
+        const AJUDA_CONTEUDO = {
+            visao: {
+                titulo: 'Ajuda — Visão geral',
+                html: `
+                    <p>Reconstrói o histórico do aluno a partir do PDF enviado.</p>
+                    <ul class="list-disc pl-5 space-y-1.5 mt-3">
+                        <li><strong>Dados do aluno</strong> — identificação, com matrícula e ano de ingresso em
+                            destaque, e o botão para gerar um <strong>relatório em PDF</strong> com tudo desta
+                            página.</li>
+                        <li><strong>Progresso do curso</strong> — % de conclusão estimado e carga horária que falta,
+                            com base nas disciplinas aprovadas x pendentes.</li>
+                        <li><strong>Disciplinas do semestre corrente</strong> — as que o aluno está cursando agora.</li>
+                        <li><strong>Desempenho por semestre</strong> — média e aprovação/reprovação em cada período
+                            letivo.</li>
+                        <li><strong>Aprovadas, a cursar e reprovadas</strong> — listas completas, cada uma com busca
+                            por nome, código ou docente.</li>
+                    </ul>`,
+            },
+            semestre: {
+                titulo: 'Ajuda — Status semestre atual',
+                html: `
+                    <p>Cruza o histórico com os diários de classe para avaliar a frequência do aluno nas disciplinas
+                        em que está matriculado <strong>agora</strong>.</p>
+                    <ul class="list-disc pl-5 space-y-1.5 mt-3">
+                        <li>Envie de uma vez, na caixa de upload, os diários (PDF) que tiver — não precisa indicar
+                            qual arquivo é de qual disciplina, a identificação é automática.</li>
+                        <li>Clique em <strong>"Processar diários enviados"</strong>: a disciplina de cada diário é
+                            localizada pelo código e o aluno é buscado pela matrícula.</li>
+                        <li>O resultado mostra <strong>aulas dadas</strong>, <strong>faltas</strong> e
+                            <strong>% de frequência</strong> por disciplina, com detalhamento mês a mês.</li>
+                        <li>O gráfico ao lado consolida a frequência de todas as disciplinas já processadas.</li>
+                        <li>Diários que não batem com nenhuma disciplina do semestre atual geram um aviso e não
+                            afetam as demais; processar um novo lote não apaga resultados já mostrados.</li>
+                    </ul>`,
+            },
+        };
+
+        function mostrarAjuda(chave) {
+            const info = AJUDA_CONTEUDO[chave];
+            if (!info) return;
+            document.getElementById('ajuda-titulo').textContent = info.titulo;
+            document.getElementById('ajuda-conteudo').innerHTML = info.html;
+            const modal = document.getElementById('modal-ajuda');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function fecharAjuda(event) {
+            if (event && event.target !== document.getElementById('modal-ajuda')) return;
+            const modal = document.getElementById('modal-ajuda');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !document.getElementById('modal-aviso').classList.contains('hidden')) fecharAviso();
+            if (e.key !== 'Escape') return;
+            if (!document.getElementById('modal-aviso').classList.contains('hidden')) fecharAviso();
+            if (!document.getElementById('modal-ajuda').classList.contains('hidden')) fecharAjuda();
         });
 
         let dadosTabela = [];
@@ -1091,6 +1170,19 @@
             </div>`;
         }
 
+        function _botaoAjuda(chave) {
+            return `<div class="flex justify-end">
+                <button onclick="mostrarAjuda('${chave}')"
+                    class="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Ajuda
+                </button>
+            </div>`;
+        }
+
         function renderHistoricoCards(j) {
             const ch = j.carga_horaria || {};
             const idx = j.indices || {};
@@ -1204,6 +1296,7 @@
                 `<div class="h-[320px]"><canvas id="grafico-historico"></canvas></div>`);
 
             document.getElementById('hpanel-visao').innerHTML = `
+                ${_botaoAjuda('visao')}
                 <div class="grid gap-5 lg:grid-cols-[3fr_2fr] items-start">
                     ${cardDados}
                     <div class="flex flex-col gap-5">${cardProgresso}${cardMatriculadas}</div>
@@ -1291,7 +1384,7 @@
                     <div class="h-[360px]"><canvas id="grafico-semestre"></canvas></div>
                 </div>`);
 
-            document.getElementById('hpanel-semestre').innerHTML = cardDados +
+            document.getElementById('hpanel-semestre').innerHTML = _botaoAjuda('semestre') + cardDados +
                 `<div class="grid gap-5 lg:grid-cols-2 items-start">${cardDisciplinas}${cardGraficoSemestre}</div>`;
 
             _renderGraficoSemestre();
