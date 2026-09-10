@@ -131,13 +131,27 @@ def extrair_metadados_pdf(caminho_pdf):
                         break
 
             metadados["Coordenador do Curso"] = coordenador
-            print(f"{coordenador}--------------")
-            metadados["Código"] = extrair_valor_rotulo_multilinha(linhas_p1, "Código:", rotulos_p1)
+
+            # "Código:" e "Disciplina:" — quando o nome da disciplina é longo,
+            # o PDF quebra o texto e a 1ª linha do nome "vaza" para a linha do
+            # código (ex.: "Código: 08023270" seguido de "ACESSIBILIDADE E
+            # INCLUSÃO NO SISTEMA DE" e só depois "Disciplina:" / "INFORMAÇÃO").
+            # Separa o código só-numérico do restante e devolve esse pedaço
+            # para o nome da disciplina.
+            codigo_bruto = extrair_valor_rotulo_multilinha(linhas_p1, "Código:", rotulos_p1)
+            partes_cod = codigo_bruto.split(None, 1)
+            if partes_cod and any(c.isdigit() for c in partes_cod[0]):
+                metadados["Código"] = partes_cod[0]
+                nome_prefixo = partes_cod[1].strip() if len(partes_cod) > 1 else ""
+            else:
+                metadados["Código"] = codigo_bruto.strip()
+                nome_prefixo = ""
 
             disciplina_bruta = extrair_valor_rotulo_multilinha(
                 linhas_p1, "Disciplina:", ["Créditos:", "Carga Horária:", "Código:"]
             )
-            metadados["Disciplina"] = disciplina_bruta.split("Créditos:")[0].strip()
+            disciplina_bruta = disciplina_bruta.split("Créditos:")[0].strip()
+            metadados["Disciplina"] = (nome_prefixo + " " + disciplina_bruta).strip()
             metadados["Carga Horária"] = extrair_valor_rotulo_multilinha(
                 linhas_p1, "Carga Horária:", rotulos_p1
             )
