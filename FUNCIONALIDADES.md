@@ -127,7 +127,10 @@ para **um** aluno, um resumo pronto para virar JSON de API:
   - `percentuais` (reprovação por falta/média sobre a base de avaliados nesta
     oferta; REPMF conta nos dois);
   - listas `disciplinas_aprovadas` (com `carga_horaria` e `media`),
-    `disciplinas_a_cursar` (com `matriculado_atualmente`), `reprovacoes_detalhe`
+    `disciplinas_a_cursar` (obrigatórias pendentes **+** disciplinas eletivas em
+    que o aluno está matriculado agora — situação `MATR` no histórico que não
+    constam na lista de pendentes do PPC —, todas com `matriculado_atualmente`),
+    `reprovacoes_detalhe`
     (com `carga_horaria`, `media`, `freq_pct`, `situacao`);
   - `desempenho_por_semestre`: por período letivo, contagem de componentes /
     aprovados / reprovados / em curso, `media_semestre` (média dos avaliados) e

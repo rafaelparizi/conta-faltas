@@ -684,6 +684,33 @@ def _desempenho_por_semestre(componentes):
     return saida
 
 
+def _disciplinas_a_cursar(h, docente_por_codigo):
+    """Disciplinas que o aluno ainda precisa cursar / está cursando.
+
+    Base: os "Componentes Curriculares Obrigatórios Pendentes" do PDF. Como
+    essa tabela só lista o que está no PPC, disciplinas ELETIVAS em que o
+    aluno está matriculado agora (situação MATR no histórico) não aparecem
+    ali — então são acrescentadas a partir dos próprios componentes, desde
+    que ainda não estejam na lista de pendentes.
+    """
+    saida = [
+        {"codigo": p.codigo, "componente": p.nome,
+         "carga_horaria": p.carga_horaria, "matriculado_atualmente": p.matriculado_atualmente,
+         "docente": docente_por_codigo.get(p.codigo, "")}
+        for p in h.pendentes
+    ]
+    ja_listados = {p.codigo for p in h.pendentes}
+    for c in h.componentes:
+        if c.situacao == "MATR" and c.codigo not in ja_listados:
+            ja_listados.add(c.codigo)
+            saida.append({
+                "codigo": c.codigo, "componente": c.nome,
+                "carga_horaria": c.carga_horaria, "matriculado_atualmente": True,
+                "docente": docente_por_codigo.get(c.codigo, c.docentes or ""),
+            })
+    return saida
+
+
 def resumo_status(h):
     contagem = {}
     for c in h.componentes:
@@ -769,12 +796,7 @@ def resumo_status(h):
              "carga_horaria": c.carga_horaria, "media": c.media, "docente": c.docentes}
             for c in h.componentes if c.situacao == "APR"
         ],
-        "disciplinas_a_cursar": [
-            {"codigo": p.codigo, "componente": p.nome,
-             "carga_horaria": p.carga_horaria, "matriculado_atualmente": p.matriculado_atualmente,
-             "docente": docente_por_codigo.get(p.codigo, "")}
-            for p in h.pendentes
-        ],
+        "disciplinas_a_cursar": _disciplinas_a_cursar(h, docente_por_codigo),
         "reprovacoes_detalhe": [
             {"codigo": c.codigo, "componente": c.nome, "periodo": c.periodo,
              "carga_horaria": c.carga_horaria, "media": c.media,
