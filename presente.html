@@ -1414,6 +1414,29 @@
             const valores = entradas.map(([, r]) => r.pct);
             const cores = valores.map(v => (v < LIMIAR_PRESENCA ? '#ef4444' : '#22c55e'));
 
+            const linhaLimiarSemestre = {
+                id: 'linhaLimiarSemestre',
+                afterDatasetsDraw(chart) {
+                    const { ctx, chartArea, scales } = chart;
+                    if (!chartArea || !scales.x) return;
+                    const x = scales.x.getPixelForValue(LIMIAR_PRESENCA);
+                    ctx.save();
+                    ctx.strokeStyle = '#dc2626';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([6, 6]);
+                    ctx.beginPath();
+                    ctx.moveTo(x, chartArea.top);
+                    ctx.lineTo(x, chartArea.bottom);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.fillStyle = '#dc2626';
+                    ctx.font = 'bold 11px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`${LIMIAR_PRESENCA}%`, x, chartArea.top - 4);
+                    ctx.restore();
+                },
+            };
+
             const ctx = document.getElementById('grafico-semestre');
             if (graficoSemestre) graficoSemestre.destroy();
             graficoSemestre = new Chart(ctx.getContext('2d'), {
@@ -1427,10 +1450,12 @@
                         borderRadius: 4,
                     }],
                 },
+                plugins: [linhaLimiarSemestre],
                 options: {
                     indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: { padding: { top: 16 } },
                     scales: {
                         x: { min: 0, max: 100, ticks: { callback: v => v + '%' } },
                     },

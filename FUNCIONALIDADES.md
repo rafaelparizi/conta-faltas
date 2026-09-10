@@ -211,9 +211,10 @@ para **um** aluno, um resumo pronto para virar JSON de API:
     o processamento dos demais; processar um novo lote não apaga os resultados
     de disciplinas de lotes anteriores. O card da direita consolida as
     disciplinas já processadas num **gráfico de barras horizontais** (uma
-    barra por disciplina, verde/vermelha pelo limiar de 75%, tooltip com
-    aulas/faltas/frequência), atualizado a cada lote processado; mostra um
-    estado vazio até a primeira análise. Se a matrícula do aluno não aparecer
+    barra por disciplina, verde quando a frequência ≥ 75% e **vermelha quando
+    abaixo de 75%**, com uma **linha vertical tracejada no marco de 75%** e
+    tooltip com aulas/faltas/frequência), atualizado a cada lote processado;
+    mostra um estado vazio até a primeira análise. Se a matrícula do aluno não aparecer
     no diário identificado, avisa que pode ser o PDF errado e a disciplina
     fica de fora do gráfico.
   - **JSON** — retorno bruto da API com botão "Copiar JSON".
