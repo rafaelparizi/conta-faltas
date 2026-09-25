@@ -1057,4 +1057,6 @@ def analyze_historico():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+    # host 0.0.0.0: sem isso o Flask só escuta em 127.0.0.1 e fica
+    # inacessível de fora do container (Docker) mesmo com a porta mapeada.
+    app.run(debug=True, host="0.0.0.0", port=5001)

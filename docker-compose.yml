@@ -1,0 +1,21 @@
+services:
+  # Frontend estático (substitui o Apache do XAMPP) — serve os .html direto
+  # desta pasta em http://localhost:8080
+  web:
+    image: nginx:alpine
+    ports:
+      - "8085:80"
+    volumes:
+      - ./:/usr/share/nginx/html:ro
+    restart: unless-stopped
+
+  # API Flask local (opcional — só é necessária pra testar mudanças em
+  # api/app.py antes do deploy no Vercel). Em produção o presente.html
+  # aponta direto pra https://conta-faltas.vercel.app.
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    ports:
+      - "5001:5001"
+    restart: unless-stopped
