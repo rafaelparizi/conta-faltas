@@ -9,16 +9,36 @@ import unicodedata
 import tempfile
 from email.message import EmailMessage
 from email.utils import formataddr
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from dataclasses import dataclass, field
 from typing import Optional
 import pandas as pd
 import pdfplumber
 from flask import Flask, request, jsonify
+from flask.json.provider import DefaultJSONProvider
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
+
+# Datas/horas: o Firestore guarda em UTC; tudo que a API devolve sai no fuso
+# de São Paulo, em ISO 8601 com offset (ex.: "2026-09-26T11:40:25-03:00").
+# Sem isso o Flask mandava "Sat, 26 Sep 2026 14:40:25 GMT".
+FUSO_SP = ZoneInfo("America/Sao_Paulo")
+
+
+class _JSONProviderSP(DefaultJSONProvider):
+    def default(self, o):
+        if isinstance(o, datetime):
+            if o.tzinfo is None:
+                o = o.replace(tzinfo=ZoneInfo("UTC"))
+            return o.astimezone(FUSO_SP).isoformat(timespec="seconds")
+        return super().default(o)
+
+
+app.json = _JSONProviderSP(app)
 
 
 # =========================================================

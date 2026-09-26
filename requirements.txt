@@ -4,3 +4,4 @@ pandas
 pdfplumber
 werkzeug
 firebase-admin
+tzdata

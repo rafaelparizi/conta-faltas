@@ -62,6 +62,10 @@ ferramenta restrito a **coordenadores aprovados**.
 - **Status do pedido**: sem registro em `coordenadores`, vale o status da
   solicitação (`pendente` / `rejeitado`) — quem já pediu vê "em análise" ou
   "não aprovado" ao entrar, e não o formulário de novo.
+- **Fuso horário**: o Firestore guarda datas em UTC; a API devolve toda data
+  no fuso de **São Paulo** (ISO 8601 com offset, ex.:
+  `2026-09-26T11:40:25-03:00`) e o `admin.html` exibe com
+  `timeZone: 'America/Sao_Paulo'`, independente do fuso do navegador.
 - **Comprovante no Firestore**, em base64 dentro do documento da solicitação
   — sem Firebase Storage, que exige plano pago (Blaze) para ser habilitado.
 - **A API também exige login**: todas as rotas de dados (`/check-disciplines`,
@@ -357,4 +361,4 @@ docker compose up -d --build
 
 ## Dependências (`requirements.txt`)
 
-`flask`, `flask-cors`, `pandas`, `pdfplumber`, `werkzeug`, `firebase-admin`
+`flask`, `flask-cors`, `pandas`, `pdfplumber`, `werkzeug`, `firebase-admin`, `tzdata`
