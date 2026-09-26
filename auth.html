@@ -31,11 +31,16 @@
             align-items: center;
         }
     </style>
+
+    <!-- Firebase (Authentication) -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="auth-common.js"></script>
     <script>
-        // v1: sem OAuth real. Se o usuário já "entrou" antes, pula o login.
-        if (localStorage.getItem('presente_auth') === '1') {
-            location.replace('presente.html');
-        }
+        firebase.initializeApp(window.FIREBASE_CONFIG);
+        // const API_URL = "http://127.0.0.1:5001";
+        const API_URL = "https://conta-faltas.vercel.app";
     </script>
 </head>
 
@@ -62,29 +67,89 @@
                 <span class="beta-badge italic">VERSÃO BETA EM TESTES</span>
             </div>
 
-            <h1 class="text-2xl font-extrabold text-gray-900 mb-2">Acesse sua conta</h1>
-            <p class="text-sm text-gray-600 mb-8">
-                Entre para transformar os diários do SIGAA em indicadores de frequência e evasão.
-            </p>
+            <!-- Estado: login -->
+            <div id="bloco-login">
+                <h1 class="text-2xl font-extrabold text-gray-900 mb-2">Acesse sua conta</h1>
+                <p class="text-sm text-gray-600 mb-8">
+                    Entre para transformar os diários do SIGAA em indicadores de frequência e evasão.
+                </p>
 
-            <button id="btn-google" type="button"
-                class="w-full flex items-center justify-center gap-3 border border-gray-300 rounded-lg px-4 py-3 font-semibold text-gray-700 hover:bg-gray-50 hover:shadow-sm transition">
-                <svg class="w-5 h-5" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <path fill="#EA4335"
-                        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-                    <path fill="#4285F4"
-                        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-                    <path fill="#FBBC05"
-                        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-                    <path fill="#34A853"
-                        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
-                </svg>
-                Entrar com Google
-            </button>
+                <button id="btn-google" type="button"
+                    class="w-full flex items-center justify-center gap-3 border border-gray-300 rounded-lg px-4 py-3 font-semibold text-gray-700 hover:bg-gray-50 hover:shadow-sm transition disabled:opacity-60">
+                    <svg class="w-5 h-5" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path fill="#EA4335"
+                            d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+                        <path fill="#4285F4"
+                            d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+                        <path fill="#FBBC05"
+                            d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+                        <path fill="#34A853"
+                            d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+                    </svg>
+                    <span id="btn-google-texto">Entrar com Google</span>
+                </button>
 
-            <a href="index.html" class="block mt-6 text-sm text-iffar hover:underline">
-                Voltar para a página inicial
-            </a>
+                <p id="erro-login" class="hidden text-sm text-red-600 mt-4"></p>
+
+                <a href="index.html" class="block mt-6 text-sm text-iffar hover:underline">
+                    Voltar para a página inicial
+                </a>
+            </div>
+
+            <!-- Estado: pendente de aprovação -->
+            <div id="bloco-pendente" class="hidden">
+                <div class="text-4xl mb-3">⏳</div>
+                <h1 class="text-xl font-extrabold text-gray-900 mb-2">Solicitação em análise</h1>
+                <p class="text-sm text-gray-600 mb-6">
+                    Seu pedido de acesso como coordenador de curso foi enviado e está aguardando
+                    aprovação. Você recebe acesso assim que for aprovado — pode tentar de novo mais tarde.
+                </p>
+                <button onclick="sairDaConta()" class="text-sm text-iffar hover:underline">Sair</button>
+            </div>
+
+            <!-- Estado: rejeitado -->
+            <div id="bloco-rejeitado" class="hidden">
+                <div class="text-4xl mb-3">🚫</div>
+                <h1 class="text-xl font-extrabold text-gray-900 mb-2">Acesso não aprovado</h1>
+                <p class="text-sm text-gray-600 mb-6">
+                    Seu pedido de acesso não foi aprovado. Se acha que isso é um engano, entre em
+                    contato com a coordenação.
+                </p>
+                <button onclick="sairDaConta()" class="text-sm text-iffar hover:underline">Sair</button>
+            </div>
+
+            <!-- Estado: novo (precisa solicitar acesso) -->
+            <div id="bloco-solicitar" class="hidden text-left">
+                <h1 class="text-xl font-extrabold text-gray-900 mb-1 text-center">Solicitar acesso</h1>
+                <p class="text-sm text-gray-600 mb-6 text-center">
+                    Logado como <strong id="solicitar-email"></strong>. Para usar a ferramenta como
+                    coordenador de curso, envie um comprovante (portaria, e-mail institucional, etc.).
+                </p>
+
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Nome completo</label>
+                <input id="solicitar-nome" type="text"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4" />
+
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Curso que coordena</label>
+                <input id="solicitar-curso" type="text" placeholder="Ex.: Bacharelado em Sistemas de Informação"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4" />
+
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Comprovante (PDF ou imagem, até
+                    700KB)</label>
+                <input id="solicitar-arquivo" type="file" accept=".pdf,image/*"
+                    class="w-full text-sm mb-1" />
+                <p id="solicitar-arquivo-info" class="text-xs text-gray-400 mb-4"></p>
+
+                <p id="erro-solicitar" class="hidden text-sm text-red-600 mb-4"></p>
+
+                <button id="btn-enviar-solicitacao" onclick="enviarSolicitacao()"
+                    class="w-full bg-iffar hover:brightness-95 text-white font-semibold py-2.5 rounded-lg transition disabled:opacity-60">
+                    Enviar solicitação
+                </button>
+                <button onclick="sairDaConta()" class="w-full text-sm text-gray-500 hover:underline mt-3">
+                    Sair
+                </button>
+            </div>
         </div>
 
         <p class="text-xs text-gray-400 text-center mt-6">
@@ -93,13 +158,129 @@
     </div>
 
     <script>
-        document.getElementById('btn-google').addEventListener('click', function () {
-            // v1: apenas marca como logado e segue para a ferramenta.
-            // A integração real com o Google (OAuth) entra em uma próxima versão.
-            localStorage.setItem('presente_auth', '1');
-            localStorage.setItem('presente_auth_ts', String(Date.now()));
-            location.href = 'presente.html';
+        const blocos = ['login', 'pendente', 'rejeitado', 'solicitar'];
+        function mostrarBloco(nome) {
+            blocos.forEach(b => document.getElementById('bloco-' + b).classList.toggle('hidden', b !== nome));
+        }
+
+        function mostrarErroLogin(msg) {
+            const el = document.getElementById('erro-login');
+            el.textContent = msg;
+            el.classList.remove('hidden');
+        }
+
+        async function consultarStatus() {
+            const res = await apiFetch(`${API_URL}/auth/status`);
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.erro || 'Erro ao consultar status de acesso.');
+            return json;
+        }
+
+        async function tratarStatus(status) {
+            if (status.status === 'aprovado') {
+                redirecionarComProtecao('presente.html');
+            } else if (status.status === 'pendente') {
+                mostrarBloco('pendente');
+            } else if (status.status === 'rejeitado') {
+                mostrarBloco('rejeitado');
+            } else {
+                document.getElementById('solicitar-email').textContent = status.email;
+                mostrarBloco('solicitar');
+            }
+        }
+
+        // Checagem inicial (uma vez só): se já existe sessão salva, segue
+        // direto. Não usa onAuthStateChanged contínuo — ele também dispararia
+        // logo após o login pelo botão, consultando o status 2x e
+        // redirecionando em dobro.
+        (async () => {
+            const user = await _aguardarUsuarioFirebase();
+            if (!user) { mostrarBloco('login'); return; }
+            try {
+                await tratarStatus(await consultarStatus());
+            } catch (e) {
+                mostrarBloco('login');
+                mostrarErroLogin(e.message);
+            }
+        })();
+
+        document.getElementById('btn-google').addEventListener('click', async function () {
+            const btn = this;
+            const provider = new firebase.auth.GoogleAuthProvider();
+            btn.disabled = true;
+            document.getElementById('btn-google-texto').textContent = 'Entrando...';
+            try {
+                // Persistência LOCAL explícita: a sessão precisa sobreviver à
+                // troca de página (auth.html → presente.html). Se o navegador
+                // bloquear o armazenamento, isso falha aqui com erro claro.
+                await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+                await firebase.auth().signInWithPopup(provider);
+                await tratarStatus(await consultarStatus());
+            } catch (e) {
+                mostrarErroLogin(e.code === 'auth/popup-closed-by-user'
+                    ? 'Login cancelado.'
+                    : ('Não foi possível entrar: ' + e.message));
+            } finally {
+                btn.disabled = false;
+                document.getElementById('btn-google-texto').textContent = 'Entrar com Google';
+            }
         });
+
+        function _lerArquivoComoDataUrl(file) {
+            return new Promise((resolve, reject) => {
+                const leitor = new FileReader();
+                leitor.onload = () => resolve(leitor.result);
+                leitor.onerror = reject;
+                leitor.readAsDataURL(file);
+            });
+        }
+
+        document.getElementById('solicitar-arquivo').addEventListener('change', function () {
+            const f = this.files[0];
+            document.getElementById('solicitar-arquivo-info').textContent = f
+                ? `${f.name} (${(f.size / 1024).toFixed(0)} KB)`
+                : '';
+        });
+
+        async function enviarSolicitacao() {
+            const nome = document.getElementById('solicitar-nome').value.trim();
+            const curso = document.getElementById('solicitar-curso').value.trim();
+            const arquivo = document.getElementById('solicitar-arquivo').files[0];
+            const erroEl = document.getElementById('erro-solicitar');
+            erroEl.classList.add('hidden');
+
+            if (!nome || !curso || !arquivo) {
+                erroEl.textContent = 'Preencha nome, curso e anexe o comprovante.';
+                erroEl.classList.remove('hidden');
+                return;
+            }
+            if (arquivo.size > 700 * 1024) {
+                erroEl.textContent = 'Arquivo muito grande (máx. 700KB). Reduza e tente novamente.';
+                erroEl.classList.remove('hidden');
+                return;
+            }
+
+            const btn = document.getElementById('btn-enviar-solicitacao');
+            btn.disabled = true;
+            btn.textContent = 'Enviando...';
+            try {
+                const comprovante_base64 = await _lerArquivoComoDataUrl(arquivo);
+                const res = await apiFetch(`${API_URL}/auth/solicitar`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nome, curso, comprovante_base64, comprovante_nome: arquivo.name }),
+                });
+                const json = await res.json();
+                if (!res.ok) throw new Error(json.erro || 'Erro ao enviar solicitação.');
+                await tratarStatus(json);
+            } catch (e) {
+                erroEl.textContent = e.message;
+                erroEl.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Enviar solicitação';
+            }
+        }
     </script>
 
 </body>

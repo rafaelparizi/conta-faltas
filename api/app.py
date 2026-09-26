@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import functools
 import unicodedata
 import tempfile
 from dataclasses import dataclass, field
@@ -13,6 +14,249 @@ from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
+
+
+# =========================================================
+# AUTENTICAÇÃO (Firebase) — login com Google + aprovação de coordenador
+# =========================================================
+#
+# Fluxo: o frontend loga com Google via Firebase Authentication (client-side)
+# e manda o ID token no header "Authorization: Bearer <token>" em toda
+# chamada. Aqui a gente só VALIDA esse token (assinatura + expiração, via
+# Firebase Admin SDK) e decide se o e-mail pode usar a API:
+#   - e-mail em ADMIN_EMAILS → sempre aprovado (bootstrap, não depende do
+#     Firestore existir/ter dado);
+#   - senão, consulta o Firestore (coleção "coordenadores", doc = e-mail);
+#     status "aprovado" libera, qualquer outro caso (não existe / pendente /
+#     rejeitado) bloqueia.
+#
+# Todo acesso ao Firestore (leitura E escrita) passa por aqui, usando o
+# Admin SDK — o frontend nunca fala com o Firestore diretamente, só com o
+# Firebase Auth (login) e com esta API. Isso evita ter que acertar regras de
+# segurança do Firestore para o cliente: por padrão elas negam tudo.
+
+ADMIN_EMAILS = {"rafael.parizi@iffarroupilha.edu.br"}
+
+try:
+    import firebase_admin
+    from firebase_admin import credentials as fb_credentials
+    from firebase_admin import auth as fb_auth
+    from firebase_admin import firestore as fb_firestore
+
+    if not firebase_admin._apps:
+        _cred_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+        _cred_json = os.environ.get("FIREBASE_SERVICE_ACCOUNT")
+        if _cred_path:
+            firebase_admin.initialize_app(fb_credentials.Certificate(_cred_path))
+        elif _cred_json:
+            firebase_admin.initialize_app(fb_credentials.Certificate(json.loads(_cred_json)))
+        # sem nenhuma das duas: fica sem inicializar (ex.: ambiente de dev
+        # sem Firebase configurado ainda) — as rotas que dependem disso
+        # devolvem erro claro em vez de derrubar a API inteira.
+
+    _db = fb_firestore.client() if firebase_admin._apps else None
+except Exception as _e:
+    firebase_admin = None
+    fb_auth = None
+    _db = None
+    print(f"Firebase Admin SDK não inicializado: {_e}")
+
+
+class ErroAuth(Exception):
+    def __init__(self, mensagem, status=401):
+        super().__init__(mensagem)
+        self.mensagem = mensagem
+        self.status = status
+
+
+def _token_do_header():
+    cabecalho = request.headers.get("Authorization", "")
+    if not cabecalho.startswith("Bearer "):
+        raise ErroAuth("Faça login para continuar.", 401)
+    return cabecalho[len("Bearer "):].strip()
+
+
+def _verificar_login():
+    """Valida o ID token do Firebase e devolve o e-mail do usuário logado."""
+    if fb_auth is None:
+        raise ErroAuth("Login com Google ainda não está configurado nesta API.", 500)
+    token = _token_do_header()
+    try:
+        decodificado = fb_auth.verify_id_token(token)
+    except Exception:
+        raise ErroAuth("Sessão inválida ou expirada. Faça login novamente.", 401)
+    email = (decodificado.get("email") or "").lower().strip()
+    if not email:
+        raise ErroAuth("Conta Google sem e-mail associado.", 401)
+    return email
+
+
+def _status_coordenador(email):
+    """'aprovado' / 'pendente' / 'rejeitado' / None (nunca solicitou)."""
+    if email in ADMIN_EMAILS:
+        return "aprovado"
+    if _db is None:
+        return None
+    doc = _db.collection("coordenadores").document(email).get()
+    if doc.exists:
+        return (doc.to_dict() or {}).get("status", "aprovado")
+    return None
+
+
+def exige_aprovado(view):
+    """Decorator: exige token Firebase válido + coordenador aprovado.
+    Deixa passar OPTIONS (preflight de CORS) sem checar nada."""
+    @functools.wraps(view)
+    def wrapper(*args, **kwargs):
+        if request.method == "OPTIONS":
+            return "", 200
+        try:
+            email = _verificar_login()
+            status = _status_coordenador(email)
+            if status != "aprovado":
+                msg = ("Seu acesso ainda está pendente de aprovação."
+                       if status == "pendente" else
+                       "Seu pedido de acesso foi recusado."
+                       if status == "rejeitado" else
+                       "Você ainda não solicitou acesso como coordenador.")
+                return jsonify({"erro": msg, "status_acesso": status or "sem_solicitacao"}), 403
+        except ErroAuth as e:
+            return jsonify({"erro": e.mensagem}), e.status
+        request.email_usuario = email
+        return view(*args, **kwargs)
+    return wrapper
+
+
+def exige_admin(view):
+    @functools.wraps(view)
+    def wrapper(*args, **kwargs):
+        if request.method == "OPTIONS":
+            return "", 200
+        try:
+            email = _verificar_login()
+        except ErroAuth as e:
+            return jsonify({"erro": e.mensagem}), e.status
+        if email not in ADMIN_EMAILS:
+            return jsonify({"erro": "Acesso restrito ao administrador."}), 403
+        request.email_usuario = email
+        return view(*args, **kwargs)
+    return wrapper
+
+
+@app.route("/auth/status", methods=["GET", "OPTIONS"])
+def auth_status():
+    if request.method == "OPTIONS":
+        return "", 200
+    try:
+        email = _verificar_login()
+    except ErroAuth as e:
+        return jsonify({"erro": e.mensagem}), e.status
+
+    status = _status_coordenador(email)
+    if status == "aprovado":
+        return jsonify({"status": "aprovado", "email": email, "admin": email in ADMIN_EMAILS})
+    if status in ("pendente", "rejeitado"):
+        return jsonify({"status": status, "email": email})
+    return jsonify({"status": "novo", "email": email})
+
+
+@app.route("/auth/solicitar", methods=["POST", "OPTIONS"])
+def auth_solicitar():
+    if request.method == "OPTIONS":
+        return "", 200
+    try:
+        email = _verificar_login()
+    except ErroAuth as e:
+        return jsonify({"erro": e.mensagem}), e.status
+    if _db is None:
+        return jsonify({"erro": "Cadastro de acesso ainda não está configurado nesta API."}), 500
+
+    if _status_coordenador(email) == "aprovado":
+        return jsonify({"status": "aprovado", "email": email})
+
+    dados = request.get_json(silent=True) or {}
+    nome = (dados.get("nome") or "").strip()
+    curso = (dados.get("curso") or "").strip()
+    comprovante_base64 = dados.get("comprovante_base64") or ""
+    if not nome or not curso or not comprovante_base64:
+        return jsonify({"erro": "Preencha nome, curso e anexe o comprovante."}), 400
+    # ~700KB de arquivo vira ~950KB em base64 — folga do limite de 1MiB/doc do Firestore.
+    if len(comprovante_base64) > 1_000_000:
+        return jsonify({"erro": "Comprovante muito grande (máx. ~700KB). Reduza o arquivo e tente novamente."}), 400
+
+    _db.collection("solicitacoes").document(email).set({
+        "email": email,
+        "nome": nome,
+        "curso": curso,
+        "comprovante_base64": comprovante_base64,
+        "comprovante_nome": (dados.get("comprovante_nome") or "")[:200],
+        "status": "pendente",
+        "criado_em": fb_firestore.SERVER_TIMESTAMP,
+    })
+    return jsonify({"status": "pendente", "email": email})
+
+
+@app.route("/admin/pendentes", methods=["GET", "OPTIONS"])
+@exige_admin
+def admin_pendentes():
+    if _db is None:
+        return jsonify({"erro": "Cadastro de acesso ainda não está configurado nesta API."}), 500
+    docs = _db.collection("solicitacoes").where("status", "==", "pendente").stream()
+    solicitacoes = []
+    for d in docs:
+        item = d.to_dict() or {}
+        item.pop("comprovante_base64", None)  # não manda o base64 inteiro na listagem
+        item["tem_comprovante"] = bool((d.to_dict() or {}).get("comprovante_base64"))
+        solicitacoes.append(item)
+    return jsonify({"solicitacoes": solicitacoes})
+
+
+@app.route("/admin/comprovante/<email>", methods=["GET", "OPTIONS"])
+@exige_admin
+def admin_comprovante(email):
+    if _db is None:
+        return jsonify({"erro": "Cadastro de acesso ainda não está configurado nesta API."}), 500
+    doc = _db.collection("solicitacoes").document(email.lower().strip()).get()
+    if not doc.exists:
+        return jsonify({"erro": "Solicitação não encontrada."}), 404
+    d = doc.to_dict() or {}
+    return jsonify({
+        "comprovante_base64": d.get("comprovante_base64", ""),
+        "comprovante_nome": d.get("comprovante_nome", ""),
+    })
+
+
+@app.route("/admin/decidir", methods=["POST", "OPTIONS"])
+@exige_admin
+def admin_decidir():
+    if _db is None:
+        return jsonify({"erro": "Cadastro de acesso ainda não está configurado nesta API."}), 500
+    dados = request.get_json(silent=True) or {}
+    email = (dados.get("email") or "").lower().strip()
+    decisao = dados.get("decisao")
+    if not email or decisao not in ("aprovar", "rejeitar"):
+        return jsonify({"erro": "Informe email e decisao ('aprovar' ou 'rejeitar')."}), 400
+
+    sol_ref = _db.collection("solicitacoes").document(email)
+    sol = sol_ref.get()
+    if not sol.exists:
+        return jsonify({"erro": "Solicitação não encontrada."}), 404
+    dados_sol = sol.to_dict() or {}
+
+    if decisao == "aprovar":
+        _db.collection("coordenadores").document(email).set({
+            "email": email,
+            "nome": dados_sol.get("nome", ""),
+            "curso": dados_sol.get("curso", ""),
+            "status": "aprovado",
+            "aprovado_por": request.email_usuario,
+            "aprovado_em": fb_firestore.SERVER_TIMESTAMP,
+        })
+        sol_ref.update({"status": "aprovado"})
+    else:
+        sol_ref.update({"status": "rejeitado"})
+
+    return jsonify({"status": "ok", "email": email, "decisao": decisao})
 
 
 # =========================================================
@@ -834,6 +1078,7 @@ def index():
 
 
 @app.route("/check-disciplines", methods=["POST", "OPTIONS"])
+@exige_aprovado
 def check_disciplines():
     """
     ETAPA 1 — Pré-análise dos PDFs enviados.
@@ -912,6 +1157,7 @@ def check_disciplines():
 
 
 @app.route("/analyze", methods=["POST", "OPTIONS"])
+@exige_aprovado
 def analyze():
     """
     ETAPA 2A — Análise de evasão por mês.
@@ -975,6 +1221,7 @@ def analyze():
 
 
 @app.route("/analyze-frequency", methods=["POST", "OPTIONS"])
+@exige_aprovado
 def analyze_frequency():
     """
     ETAPA 2B — Análise completa de frequência por mês.
@@ -1029,6 +1276,7 @@ def analyze_frequency():
 
 
 @app.route("/analyze-historico", methods=["POST", "OPTIONS"])
+@exige_aprovado
 def analyze_historico():
     """
     Avaliação individual do aluno a partir do PDF de Histórico Escolar (SIGAA).

@@ -10,6 +10,15 @@
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 
+    <!-- Firebase (Authentication) -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <script src="auth-common.js"></script>
+    <script>
+        firebase.initializeApp(window.FIREBASE_CONFIG);
+    </script>
+
     <style>
         .celula-falta {
             background-color: #f3e8ff;
@@ -423,6 +432,10 @@
             </nav>
 
             <div class="px-6 py-4 border-t border-slate-200">
+                <p id="usuario-logado" class="text-[0.7rem] text-slate-400 mb-2 truncate"></p>
+                <a href="admin.html" id="link-admin" class="hidden text-sm font-semibold text-blue-600 hover:underline mb-2 block">
+                    Solicitações de acesso
+                </a>
                 <button onclick="sair()" id="btn-sair"
                     class="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-red-600 transition w-full">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -433,7 +446,7 @@
                 </button>
                 <p class="text-[0.7rem] text-slate-400 mt-3">
                     Desenvolvido por
-                    <a href="mailto:rafael.parizi@iffar.edu.br" class="text-blue-700 hover:underline">Rafael Parizi</a>
+                    <a href="mailto:rafael.parizi@iffarroupilha.edu.br" class="text-blue-700 hover:underline">Rafael Parizi</a>
                 </p>
             </div>
         </aside>
@@ -793,19 +806,40 @@
     <img id="logo-iffar-footer" src="iffar-horizontal.png" alt="Logo IFFar" class="hidden">
 
     <script>
-        // v1: exige "login" (feito em auth.html). Sem a flag, volta para o login.
-        if (localStorage.getItem('presente_auth') !== '1') {
-            location.replace('auth.html');
-        }
+        // Esconde a página até confirmar login + aprovação — evita "piscar"
+        // a tela antes do redirect quando o usuário não pode estar aqui.
+        document.documentElement.style.visibility = 'hidden';
 
         function sair() {
-            localStorage.removeItem('presente_auth');
-            localStorage.removeItem('presente_auth_ts');
-            location.replace('auth.html');
+            sairDaConta();
         }
 
         // const API_URL = "http://127.0.0.1:5001";
         const API_URL = "https://conta-faltas.vercel.app";
+
+        async function verificarAcesso() {
+            const user = await exigirLogin('auth.html');
+            if (!user) return; // exigirLogin já redirecionou
+
+            try {
+                const res = await apiFetch(`${API_URL}/auth/status`);
+                const status = await res.json();
+                if (!res.ok || status.status !== 'aprovado') {
+                    redirecionarComProtecao('auth.html');
+                    return;
+                }
+                document.getElementById('usuario-logado').textContent = status.email;
+                if (status.admin) {
+                    document.getElementById('link-admin').classList.remove('hidden');
+                }
+                try { sessionStorage.removeItem('_auth_redirects'); } catch (_) { /* ignora */ }
+                document.documentElement.style.visibility = 'visible';
+            } catch (e) {
+                console.error('Erro ao verificar acesso:', e);
+                redirecionarComProtecao('auth.html');
+            }
+        }
+        verificarAcesso();
 
         // ===== Diálogo de aviso estilizado (substitui o alert() nativo) =====
         function mostrarAviso(mensagem, tipo = 'aviso', titulo = null) {
@@ -1058,7 +1092,7 @@
             try {
                 const fd = new FormData();
                 fd.append('arquivo', files[0]);
-                const res = await fetch(`${API_URL}/analyze-historico`, { method: 'POST', body: fd });
+                const res = await apiFetch(`${API_URL}/analyze-historico`, { method: 'POST', body: fd });
 
                 const texto = await res.text();
                 let json;
@@ -1502,7 +1536,7 @@
                 // 1) identifica a disciplina (código) de cada diário enviado, de uma vez
                 const fdCheck = new FormData();
                 arquivos.forEach(f => fdCheck.append('arquivos', f));
-                const resCheck = await fetch(`${API_URL}/check-disciplines`, { method: 'POST', body: fdCheck });
+                const resCheck = await apiFetch(`${API_URL}/check-disciplines`, { method: 'POST', body: fdCheck });
                 const detectadas = await resCheck.json();
                 if (!Array.isArray(detectadas)) throw new Error((detectadas && detectadas.erro) || 'Resposta inesperada da API.');
 
@@ -1524,7 +1558,7 @@
                 const fd = new FormData();
                 arquivos.forEach(f => fd.append('arquivos', f));
                 fd.append('pesos', JSON.stringify(pesos));
-                const res = await fetch(`${API_URL}/analyze-frequency`, { method: 'POST', body: fd });
+                const res = await apiFetch(`${API_URL}/analyze-frequency`, { method: 'POST', body: fd });
                 const linhas = await res.json();
                 if (!Array.isArray(linhas)) throw new Error((linhas && linhas.erro) || 'Resposta inesperada da API.');
 
@@ -1820,7 +1854,7 @@
             document.getElementById('loading').classList.remove('hidden');
 
             try {
-                const res = await fetch(`${API_URL}/check-disciplines`, { method: 'POST', body: formCheck });
+                const res = await apiFetch(`${API_URL}/check-disciplines`, { method: 'POST', body: formCheck });
                 const disciplinas = await res.json();
 
                 _pesosConfirmados = {};
@@ -1920,7 +1954,7 @@
 
             try {
                 const endpoint = abaAtual === 'evasao' ? '/analyze' : '/analyze-frequency';
-                const res = await fetch(`${API_URL}${endpoint}`, { method: 'POST', body: formData });
+                const res = await apiFetch(`${API_URL}${endpoint}`, { method: 'POST', body: formData });
                 dadosTabela = await res.json();
 
                 // nível é apenas rótulo: definido pelo usuário na tela de configuração

@@ -1,1 +1,6 @@
 venv/
+
+# Chave de service account do Firebase (secreta) — nunca commitar.
+# Use um nome como firebase-service-account.json e mantenha só localmente
+# (na Vercel, o conteúdo vai como variável de ambiente FIREBASE_SERVICE_ACCOUNT).
+firebase-service-account*.json

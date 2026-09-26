@@ -1,12 +1,14 @@
 services:
   # Frontend estático (substitui o Apache do XAMPP) — serve os .html direto
-  # desta pasta em http://localhost:8080
+  # desta pasta em http://localhost:8085
   web:
     image: nginx:alpine
     ports:
       - "8085:80"
     volumes:
       - ./:/usr/share/nginx/html:ro
+      # sem cache no navegador em dev (senão ele serve .html/.js antigos)
+      - ./nginx-dev.conf:/etc/nginx/conf.d/default.conf:ro
     restart: unless-stopped
 
   # API Flask local (opcional — só é necessária pra testar mudanças em
@@ -18,4 +20,11 @@ services:
       dockerfile: api/Dockerfile
     ports:
       - "5001:5001"
+    # Chave da conta de serviço do Firebase (Console → Configurações do
+    # projeto → Contas de serviço → Gerar nova chave privada), salva como
+    # firebase-service-account.json nesta pasta — já ignorado pelo git.
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/firebase-service-account.json
+    volumes:
+      - ./firebase-service-account.json:/run/secrets/firebase-service-account.json:ro
     restart: unless-stopped

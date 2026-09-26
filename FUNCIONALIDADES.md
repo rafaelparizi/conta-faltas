@@ -13,9 +13,11 @@ frequência e alertas de evasão.
 | Camada | Tecnologia | Arquivo |
 |---|---|---|
 | Landing page | HTML + Tailwind (CDN) | `index.html` |
-| Autenticação | HTML + Tailwind (CDN) | `auth.html` |
+| Autenticação | Firebase Authentication (Google) | `auth.html`, `auth-common.js`, `firebase-config.js` |
+| Aprovação de acesso | HTML + Tailwind | `admin.html` |
 | Aplicação (SPA) | HTML + Tailwind + Chart.js + jsPDF | `presente.html` |
 | API de extração | Python / Flask + pdfplumber + pandas | `api/app.py` |
+| Banco (acessos) | Firestore (via Firebase Admin SDK, só na API) | — |
 | Deploy da API | Vercel (`https://conta-faltas.vercel.app`) | — |
 
 O front-end consome a API via `fetch`. O processamento pesado dos PDFs acontece
@@ -24,23 +26,46 @@ navegador.
 
 ---
 
-## 0. Autenticação (`auth.html`)
+## 0. Autenticação e acesso (`auth.html`, `admin.html`)
 
-> **Versão beta:** ainda **sem OAuth real**. O botão apenas registra o acesso
-> localmente e encaminha para a ferramenta. A integração com o Google Identity
-> Services (e a restrição ao domínio `@iffar.edu.br`) fica para uma próxima versão.
+Login real com conta Google via **Firebase Authentication**, e acesso à
+ferramenta restrito a **coordenadores aprovados**.
 
-- Página de login com identidade visual da landing (logo, verde IFFar, fonte Inter).
-- Único controle: botão **"Entrar com Google"** (ícone oficial em SVG).
 - Fluxo: `index.html` (landing) → `auth.html` (login) → `presente.html` (ferramenta).
-- Ao clicar no botão, grava `presente_auth = '1'` e `presente_auth_ts` no
-  `localStorage` e redireciona para `presente.html`.
-- Se o usuário já tiver a flag, `auth.html` pula direto para `presente.html`.
-- `presente.html` é protegido: sem a flag `presente_auth`, redireciona de volta
-  para `auth.html`.
-- Botão **"Sair"** no topo do `presente.html`: limpa a flag do `localStorage` e
-  volta para `auth.html`.
-- Ainda não há tela de perfil nem proteção da API Flask (segue aberta).
+- **Login**: botão "Entrar com Google" (`signInWithPopup`, persistência LOCAL).
+  Depois do login, `auth.html` consulta `GET /auth/status` e mostra a tela
+  conforme o status do e-mail:
+  - **aprovado** → vai para `presente.html`;
+  - **novo** → formulário "Solicitar acesso": nome, curso que coordena e
+    **comprovante** (PDF/imagem, até 700KB), enviado para `POST /auth/solicitar`;
+  - **pendente** → "Solicitação em análise";
+  - **rejeitado** → "Acesso não aprovado".
+- **Admin** (`ADMIN_EMAILS` em `api/app.py`, hoje só
+  `rafael.parizi@iffarroupilha.edu.br`): sempre aprovado, sem depender do
+  Firestore. Vê o link **"Solicitações de acesso"** no rodapé do menu, que
+  abre `admin.html`: lista as solicitações pendentes, abre o comprovante num
+  modal e tem os botões **Aprovar / Recusar** (`/admin/pendentes`,
+  `/admin/comprovante/<email>`, `/admin/decidir`).
+- **Comprovante no Firestore**, em base64 dentro do documento da solicitação
+  — sem Firebase Storage, que exige plano pago (Blaze) para ser habilitado.
+- **A API também exige login**: todas as rotas de dados (`/check-disciplines`,
+  `/analyze`, `/analyze-frequency`, `/analyze-historico`) exigem o ID token do
+  Firebase no header `Authorization: Bearer ...` **e** e-mail aprovado. O
+  front manda o token via `apiFetch()` (`auth-common.js`).
+- **Todo acesso ao Firestore passa pela API** (Firebase Admin SDK). O front
+  nunca fala direto com o Firestore — só com o Firebase Auth e com a API —,
+  então as regras do Firestore podem negar todo acesso de cliente.
+- `presente.html` fica escondido até confirmar login + aprovação; senão volta
+  para `auth.html`. Mostra o e-mail logado e o botão **"Sair"** no rodapé do menu.
+- **Proteções**: espera o Firebase restaurar a sessão salva (`authStateReady`)
+  antes de decidir se há usuário logado; trava de loop de redirecionamento
+  (mais de 5 redirecionamentos em 8s → para e mostra erro); timeout de 10s se
+  o Firebase não responder; apaga a flag `presente_auth` do login falso da v1.
+- **Configuração**: `firebase-config.js` tem a config pública do projeto
+  (`sigaa-frequencia`). A API lê a chave da conta de serviço de
+  `GOOGLE_APPLICATION_CREDENTIALS` (caminho de arquivo, usado no Docker local)
+  ou `FIREBASE_SERVICE_ACCOUNT` (conteúdo JSON, para a Vercel). A chave
+  (`firebase-service-account*.json`) está no `.gitignore`.
 
 ---
 
@@ -296,21 +321,23 @@ para **um** aluno, um resumo pronto para virar JSON de API:
 
 ## Como rodar localmente
 
-### API
+Com Docker (substitui o XAMPP):
+
 ```bash
-cd api
-python -m venv venv && source venv/bin/activate
-pip install -r ../requirements.txt
-python app.py           # sobe em http://127.0.0.1:5001
+docker compose up -d --build
 ```
 
-### Front-end
-Abrir `index.html` / `presente.html` em um servidor estático (ex.: XAMPP ou
-`python -m http.server`). Em `presente.html`, alterne a constante `API_URL`
-para `http://127.0.0.1:5001` durante o desenvolvimento local.
+- Front-end: `http://localhost:8085` (nginx, sem cache no navegador em dev —
+  `nginx-dev.conf`).
+- API: `http://localhost:5001`. Precisa da chave da conta de serviço do
+  Firebase salva como `firebase-service-account.json` na raiz do projeto
+  (ignorada pelo git), montada no container.
+- Para o front usar a API local, alterne a constante `API_URL` para
+  `http://127.0.0.1:5001` em `auth.html`, `presente.html` e `admin.html` —
+  e volte para a da Vercel antes de commitar.
 
 ---
 
 ## Dependências (`requirements.txt`)
 
-`flask`, `flask-cors`, `pandas`, `pdfplumber`, `werkzeug`
+`flask`, `flask-cors`, `pandas`, `pdfplumber`, `werkzeug`, `firebase-admin`
