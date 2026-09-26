@@ -7,3 +7,7 @@ firebase-service-account*.json
 
 # Credenciais locais (SMTP etc.) — nunca commitar.
 .env
+
+# Arquivos gerados pelo sistema / Python
+.DS_Store
+__pycache__/
