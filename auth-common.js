@@ -114,10 +114,20 @@ async function tokenAtual() {
     return user.getIdToken();
 }
 
+// Nível escolhido pelo ADMIN no seletor do topo. A API só aceita esse
+// header de admin — para coordenadores o nível é fixo (modalidade aprovada).
+const CHAVE_NIVEL_ADMIN = 'presente_nivel_admin';
+
+function nivelEscolhidoAdmin() {
+    try { return localStorage.getItem(CHAVE_NIVEL_ADMIN) || ''; } catch (_) { return ''; }
+}
+
 // fetch() que já anexa o Authorization: Bearer <token do Firebase>.
 async function apiFetch(url, options = {}) {
     const token = await tokenAtual();
     const headers = Object.assign({}, options.headers, { Authorization: 'Bearer ' + token });
+    const nivel = nivelEscolhidoAdmin();
+    if (nivel) headers['X-Nivel'] = nivel;
     return fetch(url, Object.assign({}, options, { headers }));
 }
 

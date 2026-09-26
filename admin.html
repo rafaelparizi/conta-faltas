@@ -129,6 +129,19 @@
             'A pedido do(a) coordenador(a)',
         ];
 
+        const MODALIDADES = {
+            tecnico_integrado: 'Técnico Integrado',
+            tecnico_subsequente: 'Técnico Subsequente',
+            superior: 'Superior',
+            eja: 'EJA',
+            pos_graduacao: 'Pós-graduação',
+        };
+        // "Curso (Modalidade)" — pedidos antigos podem não ter modalidade.
+        function cursoComModalidade(x) {
+            const mod = MODALIDADES[x.modalidade];
+            return escapeHtml(x.curso || '—') + (mod ? ` <span class="text-gray-500">(${mod})</span>` : '');
+        }
+
         // Estado da página: as listas vêm da API; os botões usam o índice.
         let pendentes = [];
         let coordenadores = [];
@@ -172,7 +185,7 @@
                     <div>
                         <p class="font-bold text-gray-900">${escapeHtml(s.nome || '(sem nome)')}</p>
                         <p class="text-sm text-gray-500">${escapeHtml(s.email)}</p>
-                        <p class="text-sm text-gray-700 mt-1"><strong>Curso:</strong> ${escapeHtml(s.curso || '—')}</p>
+                        <p class="text-sm text-gray-700 mt-1"><strong>Curso:</strong> ${cursoComModalidade(s)}</p>
                         <p class="text-sm text-gray-700"><strong>Vigência informada:</strong> ${informado}</p>
                         ${criado ? `<p class="text-xs text-gray-400 mt-1">Solicitado em ${criado}</p>` : ''}
                     </div>
@@ -350,7 +363,7 @@
                         <p class="font-bold text-gray-900">${escapeHtml(c.nome || '(sem nome)')}</p>
                         ${seloSituacao(c)}
                     </div>
-                    <p class="text-sm text-gray-500">${escapeHtml(c.email)} · ${escapeHtml(c.curso || '—')}</p>
+                    <p class="text-sm text-gray-500">${escapeHtml(c.email)} · ${cursoComModalidade(c)}</p>
                     <p class="text-xs text-gray-500 mt-0.5">Vigência: ${vigencia}</p>
                 </div>
                 <button onclick="abrirRevogar(${i})"

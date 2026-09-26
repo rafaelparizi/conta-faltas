@@ -167,6 +167,18 @@
                 <input id="solicitar-nome" type="text"
                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4" />
 
+                <label class="block text-xs font-semibold text-gray-600 mb-1" for="solicitar-modalidade">Modalidade
+                    do curso</label>
+                <select id="solicitar-modalidade"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4 bg-white">
+                    <option value="">Selecione...</option>
+                    <option value="tecnico_integrado">Técnico Integrado</option>
+                    <option value="tecnico_subsequente">Técnico Subsequente</option>
+                    <option value="superior">Superior</option>
+                    <option value="eja">EJA</option>
+                    <option value="pos_graduacao">Pós-graduação</option>
+                </select>
+
                 <label class="block text-xs font-semibold text-gray-600 mb-1">Curso que coordena</label>
                 <input id="solicitar-curso" type="text" placeholder="Ex.: Bacharelado em Sistemas de Informação"
                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4" />
@@ -311,14 +323,15 @@
         async function enviarSolicitacao() {
             const nome = document.getElementById('solicitar-nome').value.trim();
             const curso = document.getElementById('solicitar-curso').value.trim();
+            const modalidade = document.getElementById('solicitar-modalidade').value;
             const arquivo = document.getElementById('solicitar-arquivo').files[0];
             const portaria_inicio = document.getElementById('solicitar-inicio').value;
             const portaria_fim = document.getElementById('solicitar-fim').value;
             const erroEl = document.getElementById('erro-solicitar');
             erroEl.classList.add('hidden');
 
-            if (!nome || !curso || !arquivo || !portaria_inicio || !portaria_fim) {
-                erroEl.textContent = 'Preencha nome, curso, as datas de vigência e anexe a portaria.';
+            if (!nome || !modalidade || !curso || !arquivo || !portaria_inicio || !portaria_fim) {
+                erroEl.textContent = 'Preencha nome, modalidade, curso, as datas de vigência e anexe a portaria.';
                 erroEl.classList.remove('hidden');
                 return;
             }
@@ -342,7 +355,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        nome, curso, comprovante_base64, comprovante_nome: arquivo.name,
+                        nome, modalidade, curso, comprovante_base64, comprovante_nome: arquivo.name,
                         portaria_inicio, portaria_fim,
                     }),
                 });

@@ -168,7 +168,8 @@ def _situacao_acesso(email):
     if aprovado:
         fim = _parse_data(coord.get("vigencia_fim"))
         if fim is None or _hoje_sp() <= fim:
-            return {"status": "aprovado", "vigencia_fim": coord.get("vigencia_fim")}
+            return {"status": "aprovado", "vigencia_fim": coord.get("vigencia_fim"),
+                    "modalidade": coord.get("modalidade")}
 
     snap_sol = _db.collection("solicitacoes").document(email).get()
     sol = (snap_sol.to_dict() or {}) if snap_sol.exists else None
@@ -202,6 +203,17 @@ def _mensagem_bloqueio(sit):
     return "Você ainda não solicitou acesso como coordenador."
 
 
+def _nivel_da_requisicao(email, sit):
+    """Nível de ensino em que a requisição opera. Coordenador: a modalidade
+    aprovada (fixa). Admin: o nível escolhido no seletor da tela, enviado no
+    header X-Nivel. Sem informação válida → NIVEL_PADRAO."""
+    if email in ADMIN_EMAILS:
+        escolhido = (request.headers.get("X-Nivel") or "").strip()
+        return escolhido if escolhido in NIVEIS else NIVEL_PADRAO
+    modalidade = sit.get("modalidade")
+    return modalidade if modalidade in NIVEIS else NIVEL_PADRAO
+
+
 def exige_aprovado(view):
     """Decorator: exige token Firebase válido + coordenador aprovado e dentro
     da vigência. Deixa passar OPTIONS (preflight de CORS) sem checar nada."""
@@ -218,6 +230,7 @@ def exige_aprovado(view):
         except ErroAuth as e:
             return jsonify({"erro": e.mensagem}), e.status
         request.email_usuario = email
+        request.nivel = _nivel_da_requisicao(email, sit)
         return view(*args, **kwargs)
     return wrapper
 
@@ -249,6 +262,16 @@ def exige_admin(view):
 # admin, o motivo em email_erro).
 
 EMAIL_CONTATO = "rafael.parizi@iffarroupilha.edu.br"
+
+# Modalidade do curso informada no pedido de acesso (chave gravada → rótulo).
+MODALIDADES = {
+    "tecnico_integrado": "Técnico Integrado",
+    "tecnico_subsequente": "Técnico Subsequente",
+    "superior": "Superior",
+    "eja": "EJA",
+    "pos_graduacao": "Pós-graduação",
+}
+NIVEL_PADRAO = "superior"
 LINK_ACESSO = os.environ.get("APP_URL", "https://rafaelparizi.github.io/conta-faltas/auth.html")
 LINK_ADMIN = os.environ.get("ADMIN_URL", LINK_ACESSO.rsplit("/", 1)[0] + "/admin.html")
 
@@ -483,7 +506,13 @@ def auth_status():
     sit = _situacao_acesso(email)
     resposta = {"status": sit["status"] or "novo", "email": email}
     if sit["status"] == "aprovado":
-        resposta["admin"] = email in ADMIN_EMAILS
+        admin = email in ADMIN_EMAILS
+        nivel = _nivel_da_requisicao(email, sit)
+        resposta.update({"admin": admin, "nivel": nivel, "nivel_rotulo": rotulo_nivel(nivel),
+                         "recursos": recursos_do_nivel(nivel)})
+        if admin:  # opções do seletor de nível do admin
+            resposta["niveis"] = [{"valor": n, "rotulo": rotulo_nivel(n), **recursos_do_nivel(n)}
+                                  for n in NIVEIS]
     if sit.get("vigencia_fim"):
         resposta["vigencia_fim"] = sit["vigencia_fim"]
     if sit["status"] == "revogado":
@@ -508,7 +537,10 @@ def auth_solicitar():
     dados = request.get_json(silent=True) or {}
     nome = (dados.get("nome") or "").strip()
     curso = (dados.get("curso") or "").strip()
+    modalidade = (dados.get("modalidade") or "").strip()
     comprovante_base64 = dados.get("comprovante_base64") or ""
+    if modalidade not in MODALIDADES:
+        return jsonify({"erro": "Informe a modalidade do curso (técnico integrado, subsequente, superior, EJA ou pós-graduação)."}), 400
     if not nome or not curso or not comprovante_base64:
         return jsonify({"erro": "Preencha nome, curso e anexe a portaria."}), 400
     try:
@@ -524,6 +556,7 @@ def auth_solicitar():
         "email": email,
         "nome": nome,
         "curso": curso,
+        "modalidade": modalidade,
         "portaria_inicio": inicio.isoformat(),
         "portaria_fim": fim.isoformat(),
         "comprovante_base64": comprovante_base64,
@@ -531,8 +564,9 @@ def auth_solicitar():
         "status": "pendente",
         "criado_em": fb_firestore.SERVER_TIMESTAMP,
     })
-    enviado, _ = notificar_solicitacao_recebida(email, nome, curso, inicio.isoformat(), fim.isoformat())
-    notificar_admin_nova_solicitacao(email, nome, curso, inicio.isoformat(), fim.isoformat(),
+    curso_desc = f"{curso} ({MODALIDADES[modalidade]})"
+    enviado, _ = notificar_solicitacao_recebida(email, nome, curso_desc, inicio.isoformat(), fim.isoformat())
+    notificar_admin_nova_solicitacao(email, nome, curso_desc, inicio.isoformat(), fim.isoformat(),
                                      comprovante_base64, comprovante_nome)
     return jsonify({"status": "pendente", "email": email, "email_enviado": enviado})
 
@@ -593,6 +627,7 @@ def admin_decidir():
             "email": email,
             "nome": dados_sol.get("nome", ""),
             "curso": dados_sol.get("curso", ""),
+            "modalidade": dados_sol.get("modalidade", ""),
             "status": "aprovado",
             "vigencia_inicio": inicio.isoformat(),
             "vigencia_fim": fim.isoformat(),
@@ -627,6 +662,7 @@ def admin_coordenadores():
                     else "vencida")
         lista.append({
             "email": c.get("email", d.id), "nome": c.get("nome", ""), "curso": c.get("curso", ""),
+            "modalidade": c.get("modalidade", ""),
             "vigencia_inicio": c.get("vigencia_inicio"), "vigencia_fim": c.get("vigencia_fim"),
             "dias_restantes": dias, "situacao": situacao,
         })
@@ -658,6 +694,105 @@ def admin_revogar():
     })
     enviado, erro_email = notificar_acesso_revogado(email, (snap.to_dict() or {}).get("nome", ""), motivo)
     return jsonify({"status": "ok", "email": email, "email_enviado": enviado, "email_erro": erro_email})
+
+
+# =========================================================
+# PERFIL DA INSTITUIÇÃO (por usuário)
+# =========================================================
+#
+# Dados da instituição de quem usa a ferramenta: instituição, campus, sigla,
+# logo e endereço. Salvar parcial é permitido (dá pra ir preenchendo); o
+# perfil conta como "completo" quando todos os obrigatórios estão preenchidos.
+
+UFS = {"AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB",
+       "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"}
+# campo → (rótulo, obrigatório, tamanho máximo)
+CAMPOS_PERFIL = {
+    "instituicao": ("Instituição", True, 200),
+    "campus": ("Campus", True, 120),
+    "sigla": ("Sigla", True, 20),
+    "cep": ("CEP", True, 9),
+    "logradouro": ("Logradouro", True, 200),
+    "numero": ("Número", True, 20),
+    "complemento": ("Complemento", False, 120),
+    "bairro": ("Bairro", True, 120),
+    "cidade": ("Cidade", True, 120),
+    "uf": ("UF", True, 2),
+}
+LOGO_MIMES = ("image/png", "image/jpeg", "image/webp")  # sem SVG: pode carregar script
+LOGO_MAX_BASE64 = 450_000  # ~300KB de imagem
+
+
+def _faltando_no_perfil(perfil):
+    faltando = [rotulo for campo, (rotulo, obrig, _) in CAMPOS_PERFIL.items()
+                if obrig and not (perfil.get(campo) or "").strip()]
+    if not perfil.get("logo_base64"):
+        faltando.append("Logo")
+    return faltando
+
+
+def _resposta_perfil(perfil):
+    faltando = _faltando_no_perfil(perfil)
+    return {"perfil": perfil, "completo": not faltando, "faltando": faltando}
+
+
+def _dados_usuario(email):
+    """Dados do próprio usuário para a aba "Meus dados" (somente leitura):
+    vêm do registro de coordenador aprovado. Admin pode não ter registro."""
+    snap = _db.collection("coordenadores").document(email).get()
+    c = (snap.to_dict() or {}) if snap.exists else {}
+    return {
+        "email": email,
+        "admin": email in ADMIN_EMAILS,
+        "nome": c.get("nome", ""),
+        "curso": c.get("curso", ""),
+        "modalidade": c.get("modalidade", ""),
+        "vigencia_inicio": c.get("vigencia_inicio"),
+        "vigencia_fim": c.get("vigencia_fim"),
+    }
+
+
+@app.route("/perfil", methods=["GET", "PUT", "OPTIONS"])
+@exige_aprovado
+def perfil():
+    if _db is None:
+        return jsonify({"erro": _ERRO_SEM_FIRESTORE}), 500
+    ref = _db.collection("perfis").document(request.email_usuario)
+
+    if request.method == "GET":
+        snap = ref.get()
+        dados = (snap.to_dict() or {}) if snap.exists else {}
+        dados.pop("atualizado_em", None)
+        dados.pop("email", None)
+        return jsonify({**_resposta_perfil(dados), "usuario": _dados_usuario(request.email_usuario)})
+
+    entrada = request.get_json(silent=True) or {}
+    novo_perfil = {}
+    for campo, (rotulo, _, maximo) in CAMPOS_PERFIL.items():
+        valor = str(entrada.get(campo) or "").strip()
+        if len(valor) > maximo:
+            return jsonify({"erro": f"{rotulo}: máximo de {maximo} caracteres."}), 400
+        novo_perfil[campo] = valor
+
+    novo_perfil["uf"] = novo_perfil["uf"].upper()
+    if novo_perfil["uf"] and novo_perfil["uf"] not in UFS:
+        return jsonify({"erro": "UF inválida."}), 400
+    cep_digitos = re.sub(r"\D", "", novo_perfil["cep"])
+    if novo_perfil["cep"] and len(cep_digitos) != 8:
+        return jsonify({"erro": "CEP inválido (use 8 dígitos, ex.: 97670-000)."}), 400
+    if cep_digitos:
+        novo_perfil["cep"] = f"{cep_digitos[:5]}-{cep_digitos[5:]}"
+
+    logo = entrada.get("logo_base64") or ""
+    if logo:
+        if not any(logo.startswith(f"data:{m};base64,") for m in LOGO_MIMES):
+            return jsonify({"erro": "Logo: envie uma imagem PNG, JPG ou WEBP."}), 400
+        if len(logo) > LOGO_MAX_BASE64:
+            return jsonify({"erro": "Logo muito grande (máx. ~300KB). Reduza a imagem e tente novamente."}), 400
+    novo_perfil["logo_base64"] = logo
+
+    ref.set({**novo_perfil, "email": request.email_usuario, "atualizado_em": fb_firestore.SERVER_TIMESTAMP})
+    return jsonify(_resposta_perfil(novo_perfil))
 
 
 # =========================================================
@@ -834,16 +969,6 @@ def extrair_metadados_pdf(caminho_pdf):
     return metadados
 
 
-# Carga horária semestral → períodos por dia de aula (sugestão inicial).
-#   Superior:          36h → 2 · 72h → 4
-#   Técnico/Integrado: 40h → 1 · 80h → 2 · 120h → 3
-MAPA_CH_PERIODOS = {36: 2, 72: 4, 40: 1, 80: 2, 120: 3}
-
-# Níveis por carga horária (apenas rótulo/sugestão; não altera o cálculo).
-CH_NIVEL_SUPERIOR = {36, 72}
-CH_NIVEL_INTEGRADO = {40, 80, 120}
-
-
 def _ch_int(carga_horaria_str):
     try:
         return int(str(carga_horaria_str).strip())
@@ -851,28 +976,14 @@ def _ch_int(carga_horaria_str):
         return 0
 
 
-def nivel_sugerido_por_ch(carga_horaria_str):
-    ch = _ch_int(carga_horaria_str)
-    if ch in CH_NIVEL_INTEGRADO:
-        return "integrado"
-    if ch in CH_NIVEL_SUPERIOR:
-        return "superior"
-    return ""
-
-
-def peso_sugerido_por_ch(carga_horaria_str):
-    """Períodos por dia sugeridos pela CH, ou None quando a CH não é reconhecida."""
-    return MAPA_CH_PERIODOS.get(_ch_int(carga_horaria_str))
-
-
-def inferir_peso_disciplina(carga_horaria_str, pesos_por_codigo=None, codigo=None):
+def inferir_peso_disciplina(carga_horaria_str, pesos_por_codigo=None, codigo=None, nivel=None):
     """
     Determina o número de períodos por dia de aula da disciplina.
 
     Regras:
       - Se o frontend enviou um peso explícito para este código → usa ele
-      - Senão, usa o mapa CH → períodos (MAPA_CH_PERIODOS)
-      - CH não reconhecida → fallback 2
+      - Senão, a tabela CH → períodos do NÍVEL (ver NIVEIS)
+      - CH não reconhecida → períodos padrão do nível
     """
     if pesos_por_codigo and codigo and codigo in pesos_por_codigo:
         try:
@@ -880,7 +991,7 @@ def inferir_peso_disciplina(carga_horaria_str, pesos_por_codigo=None, codigo=Non
         except (ValueError, TypeError):
             pass
 
-    return peso_sugerido_por_ch(carga_horaria_str) or 2
+    return periodos_sugeridos(nivel, carga_horaria_str) or config_nivel(nivel)["periodos_padrao"]
 
 
 # =========================================================
@@ -918,88 +1029,7 @@ def mapear_colunas_meses(linha_meses):
 
 
 # =========================================================
-# BLOCO 1 - ANÁLISE DE EVASÃO (por mês)
-# =========================================================
-
-def analisar_faltas_detalhado(caminho_pdf, mes_alvo, peso_disciplina=None):
-    """
-    Analisa faltas de um mês específico, identificando alunos críticos.
-    Conta o valor real da falta (2 ou 4 períodos).
-    """
-    mes_alvo_norm = sem_acento(mes_alvo.lower().strip())
-    alunos_criticos = []
-    metadados_pdf = extrair_metadados_pdf(caminho_pdf)
-
-    if peso_disciplina is None:
-        peso_disciplina = inferir_peso_disciplina(metadados_pdf.get("Carga Horária", ""))
-
-    with pdfplumber.open(caminho_pdf) as pdf:
-        tabela = None
-        for pagina in pdf.pages:
-            texto_pagina = pagina.extract_text() or ""
-            if "Lista de Freq" in texto_pagina or "Lista de Frequ" in texto_pagina:
-                tabela = pagina.extract_table()
-                if tabela:
-                    break
-
-        if not tabela or len(tabela) < 2:
-            return None
-
-        linha_meses = tabela[0]
-        linha_dias = tabela[1]
-        indices_mes = []
-        mes_atual = ""
-
-        for i, celula in enumerate(linha_meses):
-            if celula and str(celula).strip():
-                mes_atual = normalizar_texto_mes(str(celula).strip())
-            if mes_atual and mes_alvo_norm in sem_acento(mes_atual):
-                indices_mes.append(i)
-
-        if not indices_mes:
-            return None
-
-        for linha in tabela[2:]:
-            if not linha or len(linha) < 2 or not linha[0]:
-                continue
-            matricula_bruta = str(linha[0]).strip()
-            if not matricula_bruta.isdigit() or len(matricula_bruta) < 5:
-                continue
-
-            nome = str(linha[1]).strip().replace("\n", " ")
-            faltas_no_mes_contagem = 0
-            datas_faltas = []
-            sequencia_bruta = []
-
-            for idx in indices_mes:
-                if idx >= len(linha):
-                    continue
-                marcador = str(linha[idx]).strip() if linha[idx] is not None else ""
-                dia = str(linha_dias[idx]).strip() if idx < len(linha_dias) else ""
-                sequencia_bruta.append(marcador)
-
-                if marcador.upper() == "J":
-                    pass  # justificado: não conta como falta
-                elif marcador.isdigit() and int(marcador) > 0:
-                    faltas_no_mes_contagem += int(marcador)
-                    datas_faltas.append(f"{dia} ({marcador}f)")
-
-            preenchidos = [m for m in sequencia_bruta if m != ""]
-            if len(preenchidos) >= 2 and all(m.isdigit() for m in preenchidos[-2:]):
-                registro = metadados_pdf.copy()
-                registro.update({
-                    "Matrícula": matricula_bruta,
-                    "Nome": nome,
-                    "Total Faltas (Mês)": faltas_no_mes_contagem,
-                    "Datas das Faltas": ", ".join(datas_faltas)
-                })
-                alunos_criticos.append(registro)
-
-    return pd.DataFrame(alunos_criticos) if alunos_criticos else None
-
-
-# =========================================================
-# BLOCO 2 - ANÁLISE DE FREQUÊNCIA POR MÊS
+# ANÁLISE DE FREQUÊNCIA POR MÊS (frequência da turma)
 # =========================================================
 
 def analisar_frequencia_por_mes(caminho_pdf, peso_disciplina=None):
@@ -1043,11 +1073,20 @@ def analisar_frequencia_por_mes(caminho_pdf, peso_disciplina=None):
             for mes, colunas in meses_colunas.items():
                 aulas_mes = 0
                 faltas_mes = 0
+                # Datas das faltas e sinal de possível evasão: mesma leitura
+                # da antiga "Busca por mês" (marcação literal, todas as células
+                # do mês — inclusive as sem número de dia no cabeçalho).
+                datas_faltas = []
+                marcacoes = []
 
                 for idx in colunas:
                     if idx >= len(linha):
                         continue
                     dia = str(linha_dias[idx]).strip() if idx < len(linha_dias) else ""
+                    marcador = str(linha[idx]).strip() if linha[idx] is not None else ""
+                    marcacoes.append(marcador)
+                    if marcador.isdigit() and int(marcador) > 0:
+                        datas_faltas.append(f"{dia} ({marcador}f)")
                     if not dia or not dia.isdigit():
                         continue
 
@@ -1068,6 +1107,13 @@ def analisar_frequencia_por_mes(caminho_pdf, peso_disciplina=None):
                 registro[f"{mes.capitalize()}_%_Presença"] = (
                     round(((aulas_mes - faltas_mes) / aulas_mes) * 100, 2)
                     if aulas_mes > 0 else 0.0
+                )
+                registro[f"{mes.capitalize()}_Datas_Faltas"] = ", ".join(datas_faltas)
+                # Possível evasão no mês: as duas últimas marcações preenchidas
+                # são faltas (números) — o aluno parou de vir no fim do mês.
+                preenchidas = [m for m in marcacoes if m != ""]
+                registro[f"{mes.capitalize()}_Evasao"] = (
+                    len(preenchidas) >= 2 and all(m.isdigit() for m in preenchidas[-2:])
                 )
                 total_aulas_geral += aulas_mes
                 total_faltas_geral += faltas_mes
@@ -1095,7 +1141,7 @@ def organizar_colunas_frequencia(df_final):
 
     colunas_ordenadas_meses = []
     for mes in ordem_meses:
-        for suf in ["_Total_Aulas", "_Dias_Faltados", "_%_Presença"]:
+        for suf in ["_Total_Aulas", "_Dias_Faltados", "_%_Presença", "_Datas_Faltas", "_Evasao"]:
             col = f"{mes}{suf}"
             if col in df_final.columns:
                 colunas_ordenadas_meses.append(col)
@@ -1467,6 +1513,59 @@ def resumo_status(h):
 
 
 # =========================================================
+# NÍVEIS DE ENSINO — operações separadas por nível
+# =========================================================
+#
+# O nível de quem usa vem da modalidade aprovada do coordenador (fixo) ou,
+# para o admin, do header X-Nivel (seletor no topo da tela) — ver
+# _nivel_da_requisicao. Cada nível declara as próprias operações:
+#   - periodos_por_ch / periodos_padrao: sugestão de períodos por dia de aula
+#     a partir da CH semestral da disciplina. A LEITURA dos diários (frequência
+#     geral e busca por mês) é a mesma para todos os níveis;
+#   - historico: função que lê o PDF de histórico escolar e devolve o resumo
+#     do aluno, ou None quando a análise individual ainda não existe para o
+#     nível (hoje só o Superior tem leitor de histórico).
+# Pós-graduação usa a tabela do superior e EJA a do técnico até termos
+# diários reais desses níveis para conferir.
+
+PERIODOS_SUPERIOR = {36: 2, 72: 4}
+PERIODOS_TECNICO = {40: 1, 80: 2, 120: 3}
+
+
+def analisar_historico_superior(caminho_pdf):
+    """Histórico escolar do SIGAA de graduação (componentes, pendências,
+    índices MC/IRA) → resumo do aluno."""
+    return resumo_status(parse_historico(caminho_pdf))
+
+
+NIVEIS = {
+    "tecnico_integrado": {"periodos_por_ch": PERIODOS_TECNICO, "periodos_padrao": 1, "historico": None},
+    "tecnico_subsequente": {"periodos_por_ch": PERIODOS_TECNICO, "periodos_padrao": 1, "historico": None},
+    "superior": {"periodos_por_ch": PERIODOS_SUPERIOR, "periodos_padrao": 2, "historico": analisar_historico_superior},
+    "eja": {"periodos_por_ch": PERIODOS_TECNICO, "periodos_padrao": 1, "historico": None},
+    "pos_graduacao": {"periodos_por_ch": PERIODOS_SUPERIOR, "periodos_padrao": 2, "historico": None},
+}
+assert set(NIVEIS) == set(MODALIDADES), "NIVEIS e MODALIDADES devem ter as mesmas chaves"
+
+
+def config_nivel(nivel):
+    return NIVEIS.get(nivel) or NIVEIS[NIVEL_PADRAO]
+
+
+def rotulo_nivel(nivel):
+    return MODALIDADES.get(nivel, MODALIDADES[NIVEL_PADRAO])
+
+
+def periodos_sugeridos(nivel, carga_horaria_str):
+    """Períodos/dia sugeridos pela CH no nível, ou None se a CH não é reconhecida."""
+    return config_nivel(nivel)["periodos_por_ch"].get(_ch_int(carga_horaria_str))
+
+
+def recursos_do_nivel(nivel):
+    return {"analise_individual": config_nivel(nivel)["historico"] is not None}
+
+
+# =========================================================
 # ROTAS
 # =========================================================
 
@@ -1487,7 +1586,7 @@ def check_disciplines():
     Retorna metadados de cada arquivo:
       - disciplina, código, carga_horaria, docente, ano_semestre
       - requer_confirmacao: True se CH == 72 (ambíguo: 2 ou 4 períodos/noite)
-      - peso_sugerido: sugestão automática (36h → 2, 72h → 4)
+      - peso_sugerido: sugestão pela CH, conforme o nível (ver NIVEIS)
 
     O frontend usa essa resposta para exibir a tela de confirmação
     antes de chamar /analyze ou /analyze-frequency.
@@ -1534,9 +1633,9 @@ def check_disciplines():
                     # apenas sinaliza CH ambígua (pode ser distribuída em >1 dia).
                     "requer_confirmacao": ch in (72, 80, 120),
                     # Sugestão inicial de períodos/dia (None se CH desconhecida).
-                    "peso_sugerido": peso_sugerido_por_ch(ch_str),
-                    # "integrado" | "superior" | "" (apenas rótulo/sugestão)
-                    "nivel_sugerido": nivel_sugerido_por_ch(ch_str),
+                    "peso_sugerido": periodos_sugeridos(request.nivel, ch_str),
+                    # nível de quem está usando (fixo por coordenador)
+                    "nivel_sugerido": request.nivel,
                 })
 
             except Exception as e:
@@ -1549,76 +1648,12 @@ def check_disciplines():
                     "docente": "",
                     "ano_semestre": "",
                     "requer_confirmacao": False,
-                    "peso_sugerido": 2,
-                    "nivel_sugerido": "",
+                    "peso_sugerido": config_nivel(request.nivel)["periodos_padrao"],
+                    "nivel_sugerido": request.nivel,
                     "erro": str(e)
                 })
 
     return jsonify(resultado)
-
-
-@app.route("/analyze", methods=["POST", "OPTIONS"])
-@exige_aprovado
-def analyze():
-    """
-    ETAPA 2A — Análise de evasão por mês.
-
-    Parâmetros form-data:
-      - arquivos : lista de PDFs
-      - mes      : mês alvo (ex: "Março")
-      - pesos    : JSON com mapa código → períodos
-                   ex: '{"08023217": 4, "08023100": 2}'
-                   Se não informado, infere automaticamente pela CH.
-    """
-    if request.method == "OPTIONS":
-        return "", 200
-
-    mes_analise = request.form.get("mes", "Março")
-    pesos_raw = request.form.get("pesos", "{}")
-    arquivos = request.files.getlist("arquivos")
-
-    if not arquivos:
-        return jsonify({"erro": "Nenhum arquivo enviado."}), 400
-
-    try:
-        pesos_por_codigo = json.loads(pesos_raw)
-    except (json.JSONDecodeError, TypeError):
-        pesos_por_codigo = {}
-
-    lista_dfs = []
-    with tempfile.TemporaryDirectory() as tmp:
-        for f in arquivos:
-            if not f or f.filename == "":
-                continue
-            path = os.path.join(tmp, secure_filename(f.filename))
-            f.save(path)
-            try:
-                meta = extrair_metadados_pdf(path)
-                codigo = meta.get("Código", "")
-                peso = inferir_peso_disciplina(
-                    meta.get("Carga Horária", ""),
-                    pesos_por_codigo=pesos_por_codigo,
-                    codigo=codigo
-                )
-                df = analisar_faltas_detalhado(path, mes_analise, peso_disciplina=peso)
-                if df is not None:
-                    lista_dfs.append(df)
-            except Exception as e:
-                print(f"Erro ao processar {f.filename}: {e}")
-
-    if lista_dfs:
-        df_final = pd.concat(lista_dfs, ignore_index=True)
-        metadados_cols = [
-            "Disciplina", "Código", "Ano/Semestre", "Curso", "Carga Horária",
-            "Coordenador do Curso", "Docente", "Matrícula Docente", "Matrícula", "Nome"
-        ]
-        df_final = df_final.groupby(metadados_cols, as_index=False).agg({
-            "Total Faltas (Mês)": "sum",
-            "Datas das Faltas": lambda x: " // ".join([str(v) for v in x if str(v).strip()])
-        })
-        return jsonify(df_final.sort_values(by=["Nome", "Disciplina"]).to_dict(orient="records"))
-
-    return jsonify([])
 
 
 @app.route("/analyze-frequency", methods=["POST", "OPTIONS"])
@@ -1660,7 +1695,8 @@ def analyze_frequency():
                 peso = inferir_peso_disciplina(
                     meta.get("Carga Horária", ""),
                     pesos_por_codigo=pesos_por_codigo,
-                    codigo=codigo
+                    codigo=codigo,
+                    nivel=request.nivel,
                 )
                 df = analisar_frequencia_por_mes(path, peso_disciplina=peso)
                 if df is not None:
@@ -1681,6 +1717,8 @@ def analyze_frequency():
 def analyze_historico():
     """
     Avaliação individual do aluno a partir do PDF de Histórico Escolar (SIGAA).
+    O leitor depende do nível (NIVEIS[nivel]["historico"]); níveis sem leitor
+    respondem 501.
 
     Parâmetros form-data:
       - arquivo : um único PDF de "Histórico Escolar"
@@ -1694,12 +1732,16 @@ def analyze_historico():
     if not f or f.filename == "":
         return jsonify({"erro": "Nenhum arquivo enviado."}), 400
 
+    analisar = config_nivel(request.nivel)["historico"]
+    if analisar is None:
+        return jsonify({"erro": "A análise individual do aluno ainda não está disponível para o nível "
+                                f"{rotulo_nivel(request.nivel)}."}), 501
+
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, secure_filename(f.filename))
         f.save(path)
         try:
-            historico = parse_historico(path)
-            return jsonify(resumo_status(historico))
+            return jsonify(analisar(path))
         except Exception as e:
             print(f"Erro ao processar histórico {f.filename}: {e}")
             return jsonify({"erro": f"Não foi possível ler o histórico: {e}"}), 422

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Presença.edu - Análise de Evasão</title>
+    <title>Presença.edu - Frequência da turma</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -311,6 +311,21 @@
             padding: 20px;
         }
 
+        /* Cards de situação: clicar filtra a planilha (ver filtrarPeloCard) */
+        .kpi-clicavel {
+            cursor: pointer;
+            transition: box-shadow .15s, transform .15s;
+        }
+
+        .kpi-clicavel:hover {
+            box-shadow: 0 4px 14px rgba(15, 23, 42, .10);
+            transform: translateY(-1px);
+        }
+
+        .kpi-clicavel.kpi-ativo {
+            box-shadow: 0 0 0 2px var(--cor-kpi);
+        }
+
         .ctab {
             padding: 8px 16px;
             font-size: 0.875rem;
@@ -344,16 +359,36 @@
         <!-- ===== BARRA LATERAL ===== -->
         <aside
             class="lg:w-72 lg:shrink-0 bg-white border-b lg:border-b-0 lg:border-r border-slate-200 lg:sticky lg:top-0 lg:h-screen flex flex-col">
-            <div class="px-6 py-5 border-b border-slate-200 flex items-center gap-3">
-                <div class="w-9 h-9 rounded-lg bg-blue-700 flex items-center justify-center shrink-0">
-                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 19V13m4 6V5m4 14v-8M4 19h16" />
-                    </svg>
+            <div class="px-6 py-5 border-b border-slate-200">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-blue-700 flex items-center justify-center shrink-0">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 19V13m4 6V5m4 14v-8M4 19h16" />
+                        </svg>
+                    </div>
+                    <div class="leading-tight">
+                        <p class="font-bold text-slate-900">Presença.edu</p>
+                        <p class="text-xs text-slate-500">Análise de frequências</p>
+                    </div>
                 </div>
-                <div class="leading-tight">
-                    <p class="font-bold text-slate-900">Presença.edu</p>
-                    <p class="text-xs text-slate-500">Análise de frequências</p>
+
+                <!-- Nível de ensino (preenchido por aplicarNivel; cor por nível) -->
+                <div id="destaque-nivel" class="hidden mt-3 flex items-center gap-2.5 rounded-lg px-3 py-2 text-white">
+                    <svg class="w-5 h-5 shrink-0 opacity-90" fill="none" stroke="currentColor" stroke-width="2"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.42A12.08 12.08 0 0118.5 18c-2.3 0-4.5-.6-6.5-1.7-2 1.1-4.2 1.7-6.5 1.7-.3-2.6.2-5.2 1.34-7.42L12 14z" />
+                    </svg>
+                    <div class="leading-tight min-w-0">
+                        <p class="text-[0.6rem] uppercase tracking-wider font-bold opacity-80">Nível de ensino</p>
+                        <p id="destaque-nivel-rotulo" class="text-sm font-extrabold truncate"></p>
+                    </div>
+                </div>
+                <div id="destaque-nivel-admin" class="hidden mt-2 items-center gap-2">
+                    <label for="seletor-nivel" class="text-[0.7rem] font-semibold text-slate-500 shrink-0">Ver como:</label>
+                    <select id="seletor-nivel" onchange="trocarNivelAdmin(this.value)"
+                        class="flex-1 min-w-0 text-xs text-slate-800 border border-slate-300 rounded-md px-2 py-1 bg-white"></select>
                 </div>
             </div>
 
@@ -364,41 +399,15 @@
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 14l4-4 3 3 5-6" />
                     </svg>
-                    Frequência geral
-                </button>
-                <button id="tab-evasao" onclick="trocarAba('evasao')" class="nav-item">
-                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M8 7V3m8 4V3M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1zM4 11h16" />
-                    </svg>
-                    Busca por mês
+                    Frequência Turma
                 </button>
                 <button id="nav-historico" onclick="selecionarModo('historico')" class="nav-item">
                     <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round"
                             d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
-                    Análise aluno (individual) - Apenas Superior
+                    Análise aluno (individual)
                 </button>
-
-                <div id="painel-mes" class="hidden mt-3 px-2">
-                    <label class="block text-xs font-medium text-slate-500 mb-1">Mês de análise</label>
-                    <select id="mes_analise"
-                        class="w-full border border-slate-300 rounded-lg p-2 text-sm text-slate-800 bg-white">
-                        <option value="Janeiro">Janeiro</option>
-                        <option value="Fevereiro">Fevereiro</option>
-                        <option value="Março" selected>Março</option>
-                        <option value="Abril">Abril</option>
-                        <option value="Maio">Maio</option>
-                        <option value="Junho">Junho</option>
-                        <option value="Julho">Julho</option>
-                        <option value="Agosto">Agosto</option>
-                        <option value="Setembro">Setembro</option>
-                        <option value="Outubro">Outubro</option>
-                        <option value="Novembro">Novembro</option>
-                        <option value="Dezembro">Dezembro</option>
-                    </select>
-                </div>
 
                 <p class="px-2 text-[0.7rem] font-bold uppercase tracking-wider text-slate-400 mt-6 mb-2">Fonte de dados
                 </p>
@@ -433,6 +442,9 @@
 
             <div class="px-6 py-4 border-t border-slate-200">
                 <p id="usuario-logado" class="text-[0.7rem] text-slate-400 mb-2 truncate"></p>
+                <a href="perfil.html" class="text-sm font-semibold text-blue-600 hover:underline mb-2 block">
+                    Meu perfil
+                </a>
                 <a href="admin.html" id="link-admin" class="hidden text-sm font-semibold text-blue-600 hover:underline mb-2 block">
                     Solicitações de acesso
                 </a>
@@ -454,29 +466,65 @@
         <!-- ===== CONTEÚDO ===== -->
         <main class="flex-1 min-w-0 p-6 lg:p-8">
 
+            <!-- Aviso: perfil da instituição incompleto (preenchido por verificarPerfil) -->
+            <div id="card-perfil-incompleto"
+                class="hidden mb-6 flex items-start gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
+                <div class="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                    <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" stroke-width="2"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M12 9v3.75m0 3.75h.008M10.34 3.94L1.82 18a1.875 1.875 0 001.6 2.81h17.16a1.875 1.875 0 001.6-2.81L13.66 3.94a1.875 1.875 0 00-3.32 0z" />
+                    </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="font-bold text-amber-900">Complete o perfil da sua instituição</p>
+                    <p class="text-sm text-amber-800 mt-0.5">
+                        É preciso informar instituição, campus, sigla, logo e endereço.
+                        <span id="perfil-faltando"></span>
+                    </p>
+                </div>
+                <a href="perfil.html#instituicao"
+                    class="shrink-0 self-center bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
+                    Preencher agora
+                </a>
+            </div>
+
             <header class="mb-6 flex items-start justify-between gap-4 flex-wrap">
                 <div class="min-w-0">
-                    <h1 id="titulo-tabela" class="text-2xl font-bold text-slate-900">Relatório de frequência por mês
-                    </h1>
-                    <p id="descricao-aba" class="text-sm text-slate-500 mt-1">Visualize a frequência dos alunos em todos
-                        os meses disponíveis no diário.</p>
+                    <h1 id="titulo-tabela" class="text-2xl font-bold text-slate-900">Frequência da turma</h1>
+                    <p id="descricao-aba" class="text-sm text-slate-500 mt-1">Frequência dos alunos por mês — escolha
+                        os meses no filtro para ver um período.</p>
                 </div>
                 <div class="flex items-center gap-2 flex-wrap shrink-0">
                     <span id="acoes-diario" class="flex items-center gap-2 flex-wrap">
                         <span id="label-mes"
                             class="text-xs font-semibold bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full">Todos os
                             meses</span>
-                        <button onclick="gerarPdfTabelaAtual()"
+                        <button onclick="gerarPdfFrequenciaGeral()"
                             class="px-3 py-1.5 text-xs rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition">
                             PDF
                         </button>
                     </span>
-                    <img src="iffar-horizontal.png" alt="Logo IFFar" class="hidden sm:block h-9 object-contain ml-1">
+                    <!-- Instituição do perfil (logo + sigla/campus), preenchida por verificarPerfil -->
+                    <a href="perfil.html#instituicao" id="instituicao-topo" title="Perfil da instituição"
+                        class="hidden sm:flex items-center gap-2 ml-1 hover:opacity-80 transition">
+                        <img id="instituicao-logo" alt="" class="hidden h-9 max-w-[9rem] object-contain">
+                        <span class="leading-tight">
+                            <span id="instituicao-sigla" class="block text-sm font-bold text-slate-800"></span>
+                            <span id="instituicao-campus" class="block text-[0.7rem] text-slate-500"></span>
+                        </span>
+                    </a>
                 </div>
             </header>
 
             <div id="modo-diario">
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <!-- Filtro de meses (botões gerados por renderizarFiltroMeses) -->
+                <div id="filtro-meses" class="hidden mb-5 flex items-center gap-2 flex-wrap">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500 mr-1">Meses:</span>
+                    <div id="botoes-meses" class="flex flex-wrap gap-2"></div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
                     <div class="kpi-card">
                         <p id="titulo-card-total" class="text-xs text-slate-500 uppercase font-bold tracking-wide">Total
                             de
@@ -487,9 +535,23 @@
                         <p class="text-xs text-slate-500 uppercase font-bold tracking-wide">Frequência média</p>
                         <p id="card-frequencia-media" class="mt-2 text-4xl font-extrabold text-green-600">0%</p>
                     </div>
-                    <div class="kpi-card border-l-4 border-l-red-500">
-                        <p class="text-xs text-slate-500 uppercase font-bold tracking-wide">Alertas de evasão</p>
+                    <div id="kpi-abaixo75" onclick="filtrarPeloCard('abaixo75')" style="--cor-kpi:#ef4444"
+                        class="kpi-card kpi-clicavel border-l-4 border-l-red-500"
+                        title="Presença abaixo de 75% no período — clique para filtrar a planilha">
+                        <p class="text-xs text-slate-500 uppercase font-bold tracking-wide">Abaixo de 75%</p>
                         <p id="card-alertas" class="mt-2 text-4xl font-extrabold text-red-500">0</p>
+                    </div>
+                    <div id="kpi-evadidos" onclick="filtrarPeloCard('evadidos')" style="--cor-kpi:#b91c1c"
+                        class="kpi-card kpi-clicavel border-l-4 border-l-red-700"
+                        title="Faltas no semestre atingiram 25% da carga horária da disciplina — clique para filtrar a planilha">
+                        <p class="text-xs text-slate-500 uppercase font-bold tracking-wide">Evadidos</p>
+                        <p id="card-evadidos" class="mt-2 text-4xl font-extrabold text-red-700">0</p>
+                    </div>
+                    <div id="kpi-possivel" onclick="filtrarPeloCard('possivel')" style="--cor-kpi:#f59e0b"
+                        class="kpi-card kpi-clicavel border-l-4 border-l-amber-500"
+                        title="Faltou nas duas últimas aulas registradas do último mês do período — clique para filtrar a planilha">
+                        <p class="text-xs text-slate-500 uppercase font-bold tracking-wide">Possível evasão</p>
+                        <p id="card-evasao" class="mt-2 text-4xl font-extrabold text-amber-600">0</p>
                     </div>
                 </div>
 
@@ -527,7 +589,7 @@
                         <div class="px-5 py-4 border-b border-slate-200 bg-slate-50">
                             <div class="flex items-start justify-between gap-4 flex-wrap">
                                 <div>
-                                    <h3 class="text-lg font-bold text-slate-900">Frequência geral — todos os alunos</h3>
+                                    <h3 class="text-lg font-bold text-slate-900">Frequência da turma — todos os alunos</h3>
                                     <p class="text-slate-500 text-sm mt-0.5">Uma linha por aluno · eixo X = meses ·
                                         limiar
                                         crítico 75%</p>
@@ -539,7 +601,7 @@
 
                         <div class="px-5 py-4 border-b border-slate-200">
                             <div class="flex flex-wrap items-center gap-3 text-sm font-semibold text-slate-700">
-                                <span>Mostrar alunos com presença geral entre</span>
+                                <span>Mostrar alunos com presença no período entre</span>
                                 <span id="texto-faixa-min" class="text-indigo-600 text-xl font-extrabold">0%</span>
                                 <span id="texto-faixa-max" class="text-indigo-600 text-xl font-extrabold">100%</span>
                                 <div class="faixa-slider-wrap mx-2">
@@ -558,11 +620,11 @@
                             <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
                                 <button id="btn-filtro-acima" onclick="aplicarFiltroRapidoGrafico('acima')"
                                     class="btn-filtro-geral chip-status verde">
-                                    <span class="chip-bola bg-green-400"></span>Acima de 75% (média geral)
+                                    <span class="chip-bola bg-green-400"></span>Acima de 75% (no período)
                                 </button>
                                 <button id="btn-filtro-abaixo" onclick="aplicarFiltroRapidoGrafico('abaixo')"
                                     class="btn-filtro-geral chip-status vermelho">
-                                    <span class="chip-bola bg-red-500"></span>Abaixo de 75% (média geral)
+                                    <span class="chip-bola bg-red-500"></span>Abaixo de 75% (no período)
                                 </button>
                                 <span class="chip-status amarelo">
                                     <span class="chip-bola bg-yellow-400"></span>Linha tracejada = limiar 75%
@@ -597,8 +659,8 @@
                 <!-- ===== Painel: Planilha de alunos ===== -->
                 <div id="painel-planilha" class="hidden">
                     <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                        <div class="p-4 border-b border-slate-200">
-                            <div class="relative">
+                        <div class="p-4 border-b border-slate-200 flex items-center gap-3 flex-wrap">
+                            <div class="relative flex-1 min-w-[12rem]">
                                 <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none"
                                     stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round"
@@ -606,6 +668,27 @@
                                 </svg>
                                 <input id="busca_geral" oninput="filtrarTabela()" placeholder="Buscar aluno..."
                                     class="w-full border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <button id="btn-filtro-abaixo75" type="button" onclick="alternarFiltroEvasao('abaixo75')"
+                                title="Presença abaixo de 75% no período"
+                                class="shrink-0 text-sm font-semibold px-3 py-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 transition">
+                                Abaixo de 75%
+                            </button>
+                            <button id="btn-filtro-evadidos" type="button" onclick="alternarFiltroEvasao('evadidos')"
+                                title="Faltas no semestre ≥ 25% da carga horária"
+                                class="shrink-0 text-sm font-semibold px-3 py-2 rounded-lg border border-red-300 text-red-700 hover:bg-red-50 transition">
+                                Evadidos
+                            </button>
+                            <button id="btn-filtro-possivel" type="button" onclick="alternarFiltroEvasao('possivel')"
+                                title="Faltou nas duas últimas aulas registradas do mês"
+                                class="shrink-0 text-sm font-semibold px-3 py-2 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-50 transition">
+                                Possível evasão
+                            </button>
+                            <div class="w-full flex items-center gap-4 flex-wrap text-xs text-slate-500">
+                                <span class="flex items-center gap-1.5"><span class="inline-block w-3.5 h-3.5 rounded bg-red-100 border border-red-200"></span>
+                                    <strong class="text-slate-700">Evadido</strong> — faltas no semestre ≥ 25% da carga horária</span>
+                                <span class="flex items-center gap-1.5"><span class="inline-block w-3.5 h-3.5 rounded bg-yellow-100 border border-yellow-300"></span>
+                                    <strong class="text-slate-700">Possível evasão</strong> — faltou nas duas últimas aulas do mês</span>
                             </div>
                         </div>
 
@@ -700,9 +783,9 @@
             <div class="px-6 pt-4 pb-2">
                 <div
                     class="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 leading-relaxed">
-                    <strong class="text-gray-700">Sugestão pela carga horária:</strong>
-                    Técnico/Integrado — 40h ≈ 1, 80h ≈ 2, 120h ≈ 3 períodos/dia ·
-                    Superior — 36h ≈ 2, 72h ≈ 4 períodos/dia.
+                    <strong class="text-gray-700">Sugestão pela carga horária
+                        (<span id="modal-nivel-rotulo">nível do curso</span>):</strong>
+                    <span id="modal-nivel-tabela"></span>.
                     Ajuste se a disciplina tem aula em mais de um dia por semana.
                 </div>
             </div>
@@ -773,6 +856,8 @@
                 <p id="aviso-mensagem" class="text-sm text-slate-600 leading-relaxed"></p>
             </div>
             <div class="px-6 pb-6">
+                <a id="aviso-acao" href="#"
+                    class="hidden w-full text-center bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 rounded-lg transition mb-2"></a>
                 <button onclick="fecharAviso()"
                     class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition">
                     Entendi
@@ -803,7 +888,6 @@
         </div>
     </div>
 
-    <img id="logo-iffar-footer" src="iffar-horizontal.png" alt="Logo IFFar" class="hidden">
 
     <script>
         // Esconde a página até confirmar login + aprovação — evita "piscar"
@@ -833,8 +917,10 @@
                 if (status.admin) {
                     document.getElementById('link-admin').classList.remove('hidden');
                 }
+                aplicarNivel(status);
                 try { sessionStorage.removeItem('_auth_redirects'); } catch (_) { /* ignora */ }
                 document.documentElement.style.visibility = 'visible';
+                verificarPerfil();
             } catch (e) {
                 console.error('Erro ao verificar acesso:', e);
                 redirecionarComProtecao('auth.html');
@@ -842,8 +928,173 @@
         }
         verificarAcesso();
 
+        // ===== Nível de ensino =====
+        // Cor fixa por nível, para reconhecer de relance em qual se está.
+        const CORES_NIVEL = {
+            tecnico_integrado: '#c2410c',   // laranja
+            tecnico_subsequente: '#0f766e', // verde-azulado
+            superior: '#4338ca',            // índigo
+            eja: '#be123c',                 // rosa
+            pos_graduacao: '#6d28d9',       // violeta
+        };
+
+        function aplicarNivel(status) {
+            _nivelAtual = status.nivel || 'superior';
+            const destaque = document.getElementById('destaque-nivel');
+            destaque.style.backgroundColor = CORES_NIVEL[_nivelAtual] || CORES_NIVEL.superior;
+            document.getElementById('destaque-nivel-rotulo').textContent = status.nivel_rotulo || _nivelAtual;
+            destaque.classList.remove('hidden');
+
+            if (status.admin && Array.isArray(status.niveis)) {
+                const sel = document.getElementById('seletor-nivel');
+                sel.innerHTML = status.niveis.map(n =>
+                    `<option value="${n.valor}">${n.rotulo}${n.analise_individual ? '' : ' (sem análise individual)'}</option>`).join('');
+                sel.value = _nivelAtual;
+                const caixa = document.getElementById('destaque-nivel-admin');
+                caixa.classList.remove('hidden');
+                caixa.classList.add('flex');
+            }
+
+            // Análise individual só nos níveis que têm leitor de histórico.
+            const temAnaliseIndividual = !!(status.recursos && status.recursos.analise_individual);
+            document.getElementById('nav-historico').style.display = temAnaliseIndividual ? '' : 'none';
+
+            document.getElementById('modal-nivel-rotulo').textContent = status.nivel_rotulo || '';
+            document.getElementById('modal-nivel-tabela').textContent = textoTabelaPeriodos();
+        }
+
+        function trocarNivelAdmin(nivel) {
+            try { localStorage.setItem(CHAVE_NIVEL_ADMIN, nivel); } catch (_) { /* ignora */ }
+            location.reload();
+        }
+
+        // Mostra no topo a instituição do perfil (logo, sigla, campus) e o aviso
+        // enquanto o perfil estiver incompleto. Falha na consulta não atrapalha
+        // o uso da ferramenta.
+        // "São Borja" → "Campus São Borja"; "Campus São Borja" fica como está.
+        function rotuloCampus(campus) {
+            const c = (campus || '').trim();
+            return !c ? '' : /^campus\b/i.test(c) ? c : `Campus ${c}`;
+        }
+
+        function mostrarInstituicaoNoTopo(p) {
+            const logo = document.getElementById('instituicao-logo');
+            if (p.logo_base64) {
+                logo.src = p.logo_base64;
+                logo.alt = `Logo ${p.sigla || p.instituicao || 'da instituição'}`;
+                logo.classList.remove('hidden');
+            }
+            document.getElementById('instituicao-sigla').textContent = p.sigla || p.instituicao || '';
+            document.getElementById('instituicao-campus').textContent = rotuloCampus(p.campus);
+            const bloco = document.getElementById('instituicao-topo');
+            if (p.instituicao) bloco.title = `${p.instituicao} — editar perfil`;
+            if (p.logo_base64 || p.sigla || p.instituicao) bloco.classList.remove('hidden');
+        }
+
+        // Último perfil lido da API: { dados, completo, faltando }.
+        let _perfil = { dados: {}, completo: false, faltando: [] };
+
+        async function carregarPerfil() {
+            const res = await apiFetch(`${API_URL}/perfil`);
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.erro || 'Erro ao carregar o perfil.');
+            _perfil = { dados: json.perfil || {}, completo: !!json.completo, faltando: json.faltando || [] };
+            return _perfil;
+        }
+
+        // ===== Relatórios: usam os dados da instituição do perfil =====
+
+        // Todo relatório exige o perfil completo. Consulta de novo na hora
+        // (pode ter sido completado em outra aba). Devolve os dados da
+        // instituição, ou null — nesse caso já mostrou o aviso com o botão
+        // para completar o perfil.
+        async function exigirPerfilParaRelatorio() {
+            try {
+                await carregarPerfil();
+            } catch (e) {
+                mostrarAviso('Não foi possível verificar o perfil da instituição. Tente novamente.', 'erro');
+                return null;
+            }
+            if (_perfil.completo) return _perfil.dados;
+            mostrarAviso(
+                'Os relatórios saem com os dados da sua instituição (nome, campus, sigla, logo e endereço). ' +
+                `Complete o perfil para gerar relatórios. Falta: ${_perfil.faltando.join(', ')}.`,
+                'aviso', 'Complete o perfil da instituição',
+                { texto: 'Completar perfil agora', href: 'perfil.html#instituicao' });
+            return null;
+        }
+
+        // Logo do perfil pronto para o jsPDF: convertido para PNG (o jsPDF não
+        // lida bem com WEBP) e com largura/altura que cabem na caixa sem distorcer.
+        function logoParaPdf(dataUrl, maxL, maxA) {
+            return new Promise((resolve) => {
+                if (!dataUrl) { resolve(null); return; }
+                const img = new Image();
+                img.onload = () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+                        canvas.getContext('2d').drawImage(img, 0, 0);
+                        const escala = Math.min(maxL / img.naturalWidth, maxA / img.naturalHeight);
+                        resolve({ data: canvas.toDataURL('image/png'), w: img.naturalWidth * escala, h: img.naturalHeight * escala });
+                    } catch (e) { resolve(null); }
+                };
+                img.onerror = () => resolve(null);
+                img.src = dataUrl;
+            });
+        }
+
+        // Desenha o logo centralizado na caixa (x, y, largura, altura).
+        function desenharLogoPdf(doc, logo, x, y, caixaL, caixaA) {
+            if (!logo) return;
+            doc.addImage(logo.data, 'PNG', x + (caixaL - logo.w) / 2, y + (caixaA - logo.h) / 2, logo.w, logo.h);
+        }
+
+        function instituicaoCurta(inst) {
+            return `${inst.sigla} — ${rotuloCampus(inst.campus)}`;
+        }
+
+        function enderecoInstituicao(inst) {
+            const compl = inst.complemento ? ` - ${inst.complemento}` : '';
+            return `${inst.logradouro}, ${inst.numero}${compl} · ${inst.bairro} · ${inst.cidade}/${inst.uf} · CEP ${inst.cep}`;
+        }
+
+        // Rodapé de todas as páginas: instituição + endereço + paginação.
+        function rodapeInstitucional(doc, inst, margemEsq, larguraUtil) {
+            const total = doc.internal.getNumberOfPages();
+            const emitido = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+            for (let i = 1; i <= total; i++) {
+                doc.setPage(i);
+                doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(130);
+                const linha = `${inst.instituicao} — ${rotuloCampus(inst.campus)} · ${enderecoInstituicao(inst)}`;
+                doc.text(doc.splitTextToSize(linha, larguraUtil)[0], margemEsq, 284);
+                doc.text(`Presença.edu · Emitido em ${emitido} · Página ${i} de ${total}`, margemEsq, 288);
+            }
+            doc.setTextColor(0);
+        }
+
+        function slugArquivo(s) {
+            return (s || '').normalize('NFD').replace(/[^\x00-\x7F]/g, '')
+                .replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+        }
+
+        async function verificarPerfil() {
+            try {
+                await carregarPerfil();
+                const json = { perfil: _perfil.dados, completo: _perfil.completo, faltando: _perfil.faltando };
+                mostrarInstituicaoNoTopo(json.perfil || {});
+                if (json.completo) return;
+                document.getElementById('perfil-faltando').textContent =
+                    `Falta: ${json.faltando.join(', ')}.`;
+                document.getElementById('card-perfil-incompleto').classList.remove('hidden');
+            } catch (e) {
+                console.error('Erro ao verificar o perfil:', e);
+            }
+        }
+
         // ===== Diálogo de aviso estilizado (substitui o alert() nativo) =====
-        function mostrarAviso(mensagem, tipo = 'aviso', titulo = null) {
+        // acao (opcional): { texto, href } — botão extra acima do "Entendi".
+        function mostrarAviso(mensagem, tipo = 'aviso', titulo = null, acao = null) {
             const titulos = { erro: 'Ops, algo deu errado', aviso: 'Atenção', info: 'Aviso' };
             const cores = { erro: 'bg-red-100', aviso: 'bg-amber-100', info: 'bg-blue-100' };
 
@@ -855,6 +1106,11 @@
             });
             const wrap = document.getElementById('aviso-icone-wrap');
             wrap.className = 'mx-auto mb-4 w-14 h-14 rounded-full flex items-center justify-center ' + (cores[tipo] || cores.aviso);
+
+            const botaoAcao = document.getElementById('aviso-acao');
+            botaoAcao.classList.toggle('hidden', !acao);
+            botaoAcao.classList.toggle('block', !!acao);
+            if (acao) { botaoAcao.textContent = acao.texto; botaoAcao.href = acao.href; }
 
             const modal = document.getElementById('modal-aviso');
             modal.classList.remove('hidden');
@@ -931,8 +1187,6 @@
 
         let dadosTabela = [];
         let cacheFrequencia = [];
-        let cacheEvasao = [];
-        let mesCacheEvasao = '';
         let ordemDesc = true;
         let colunaOrdenacao = 'nome';
         let abaAtual = 'frequencia';
@@ -948,15 +1202,30 @@
         let totalPaginas = 1;
 
         let _pesosConfirmados = {};   // { codigo: períodos por dia }
-        let _niveisConfirmados = {};  // { codigo: 'integrado' | 'superior' }  (apenas rótulo)
         let _disciplinasConfig = [];
 
-        const MAPA_CH_PERIODOS = { 36: 2, 72: 4, 40: 1, 80: 2, 120: 3 };
+        // Nível de ensino em que a tela opera (vem de /auth/status; fixo para
+        // coordenador, escolhido no seletor pelo admin). Espelha NIVEIS da API.
+        let _nivelAtual = 'superior';
+        const PERIODOS_TECNICO = { tabela: { 40: 1, 80: 2, 120: 3 }, padrao: 1 };
+        const PERIODOS_SUPERIOR = { tabela: { 36: 2, 72: 4 }, padrao: 2 };
+        const PERIODOS_POR_NIVEL = {
+            tecnico_integrado: PERIODOS_TECNICO,
+            tecnico_subsequente: PERIODOS_TECNICO,
+            superior: PERIODOS_SUPERIOR,
+            eja: PERIODOS_TECNICO,
+            pos_graduacao: PERIODOS_SUPERIOR,
+        };
 
-        function sugerirPeso(cargaHoraria, nivel) {
-            const ch = parseInt(cargaHoraria, 10);
-            if (MAPA_CH_PERIODOS[ch]) return MAPA_CH_PERIODOS[ch];
-            return nivel === 'integrado' ? 1 : 2;
+        function sugerirPeso(cargaHoraria, nivel = _nivelAtual) {
+            const cfg = PERIODOS_POR_NIVEL[nivel] || PERIODOS_SUPERIOR;
+            return cfg.tabela[parseInt(cargaHoraria, 10)] || cfg.padrao;
+        }
+
+        function textoTabelaPeriodos(nivel = _nivelAtual) {
+            const cfg = PERIODOS_POR_NIVEL[nivel] || PERIODOS_SUPERIOR;
+            return Object.entries(cfg.tabela).map(([ch, p]) => `${ch}h ≈ ${p}`).join(', ') +
+                ` períodos/dia (outras CH: ${cfg.padrao})`;
         }
 
         const LIMIAR_PRESENCA = 75;
@@ -965,6 +1234,140 @@
             "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
             "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
         ];
+
+        // ===== Período da Frequência Turma (filtro de meses) =====
+        // mesesSelecionados vazio = todos os meses presentes nos diários.
+        // _mesesPeriodo é recalculado por atualizarMesesPeriodo() sempre que os
+        // dados ou o filtro mudam (evita varrer a tabela a cada linha).
+        let mesesSelecionados = [];
+        let _mesesPeriodo = [];
+        // Filtros da planilha por situação: nenhum ligado = todos; um ou os dois
+        // ligados = só as linhas desses grupos.
+        const filtroEvasao = { abaixo75: false, evadidos: false, possivel: false };
+
+        function periodoEhTodos() {
+            return mesesSelecionados.length === 0;
+        }
+
+        // Meses com aula dada em algum diário (os diários trazem colunas de
+        // meses futuros ainda vazias — esses não entram no filtro).
+        function mesesComAula() {
+            return ordemMeses.filter(m => dadosTabela.some(item => (Number(item[`${m}_Total_Aulas`]) || 0) > 0));
+        }
+
+        function atualizarMesesPeriodo() {
+            const presentes = mesesComAula();
+            _mesesPeriodo = periodoEhTodos() ? presentes : presentes.filter(m => mesesSelecionados.includes(m));
+            return _mesesPeriodo;
+        }
+
+        function textoPeriodo() {
+            return periodoEhTodos() ? 'Todos os meses' : _mesesPeriodo.join(', ');
+        }
+
+        // Evadido: faltas acumuladas NO SEMESTRE (todos os meses, independente
+        // do filtro) atingiram 25% da carga horária da disciplina — o limite de
+        // reprovação por falta. Ex.: 36h → 9 faltas; 72h → 18 faltas.
+        const LIMITE_FALTAS_CH = 0.25;
+
+        function situacaoFaltasCH(item) {
+            const ch = parseInt(item['Carga Horária'], 10) || 0;
+            const faltas = Number(item['Total_Dias_Faltados_Geral']) || 0;
+            const limite = ch * LIMITE_FALTAS_CH;
+            return { ch, faltas, limite, evadido: ch > 0 && faltas >= limite };
+        }
+
+        // Aulas, faltas, % de presença, datas das faltas e situação de evasão de
+        // uma linha (aluno × disciplina) somando só os meses do período.
+        //  - evadido: ver situacaoFaltasCH (semestre inteiro, não depende do filtro);
+        //  - evasao (possível evasão): sinal do ÚLTIMO mês do período que teve
+        //    aula (faltou nas duas últimas aulas registradas desse mês).
+        function resumoPeriodo(item, meses = _mesesPeriodo) {
+            let aulas = 0, faltas = 0, ultimoComAula = null;
+            const datas = [];
+            meses.forEach(m => {
+                const aulasMes = Number(item[`${m}_Total_Aulas`]) || 0;
+                aulas += aulasMes;
+                faltas += Number(item[`${m}_Dias_Faltados`]) || 0;
+                if (aulasMes > 0) ultimoComAula = m;
+                const d = item[`${m}_Datas_Faltas`];
+                if (d) datas.push(`${m.slice(0, 3)}: ${d}`);
+            });
+            const ch = situacaoFaltasCH(item);
+            return {
+                aulas,
+                faltas,
+                pct: aulas > 0 ? Math.round(((aulas - faltas) / aulas) * 10000) / 100 : null,
+                datas: datas.join(' · '),
+                evadido: ch.evadido,
+                faltasSemestre: ch.faltas,
+                limiteFaltas: ch.limite,
+                evasao: ultimoComAula ? item[`${ultimoComAula}_Evasao`] === true : false,
+            };
+        }
+
+        function renderizarFiltroMeses() {
+            const barra = document.getElementById('filtro-meses');
+            const presentes = mesesComAula();
+            barra.classList.toggle('hidden', !presentes.length);
+            const botao = (rotulo, ativo, acao) =>
+                `<button type="button" onclick="${acao}" class="text-xs font-semibold px-3 py-1.5 rounded-full border transition ${ativo
+                    ? 'bg-blue-600 border-blue-600 text-white'
+                    : 'bg-white border-slate-300 text-slate-600 hover:border-blue-400 hover:text-blue-700'}">${rotulo}</button>`;
+            document.getElementById('botoes-meses').innerHTML =
+                botao('Todos', periodoEhTodos(), 'selecionarTodosMeses()') +
+                presentes.map(m => botao(m, mesesSelecionados.includes(m), `alternarMes('${m}')`)).join('');
+            document.getElementById('label-mes').innerText = textoPeriodo();
+        }
+
+        function alternarMes(mes) {
+            mesesSelecionados = mesesSelecionados.includes(mes)
+                ? mesesSelecionados.filter(m => m !== mes)
+                : [...mesesSelecionados, mes];
+            paginaAtual = 1;
+            filtrarTabela();
+        }
+
+        function selecionarTodosMeses() {
+            mesesSelecionados = [];
+            paginaAtual = 1;
+            filtrarTabela();
+        }
+
+        const ESTILO_FILTRO_EVASAO = {
+            abaixo75: { id: 'btn-filtro-abaixo75', card: 'kpi-abaixo75', ligado: ['bg-red-500', 'border-red-500', 'text-white'], desligado: ['text-red-600'] },
+            evadidos: { id: 'btn-filtro-evadidos', card: 'kpi-evadidos', ligado: ['bg-red-600', 'border-red-600', 'text-white'], desligado: ['text-red-700'] },
+            possivel: { id: 'btn-filtro-possivel', card: 'kpi-possivel', ligado: ['bg-amber-500', 'border-amber-500', 'text-white'], desligado: ['text-amber-700'] },
+        };
+
+        function alternarFiltroEvasao(grupo) {
+            filtroEvasao[grupo] = !filtroEvasao[grupo];
+            const { id, card, ligado, desligado } = ESTILO_FILTRO_EVASAO[grupo];
+            const btn = document.getElementById(id);
+            ligado.forEach(c => btn.classList.toggle(c, filtroEvasao[grupo]));
+            desligado.forEach(c => btn.classList.toggle(c, !filtroEvasao[grupo]));
+            document.getElementById(card).classList.toggle('kpi-ativo', filtroEvasao[grupo]);
+            paginaAtual = 1;
+            filtrarTabela();
+        }
+
+        // Card de situação: liga/desliga o mesmo filtro dos botões e leva à planilha.
+        function filtrarPeloCard(grupo) {
+            alternarFiltroEvasao(grupo);
+            trocarConteudo('planilha');
+            document.getElementById('ctab-planilha').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Linha passa pelos filtros de situação? Nenhum ligado = todas; com
+        // vários ligados vale a união dos grupos. Evadido tem prioridade sobre
+        // possível evasão (como na cor da linha e nos cards).
+        function passaFiltroEvasao(r) {
+            const { abaixo75, evadidos, possivel } = filtroEvasao;
+            if (!abaixo75 && !evadidos && !possivel) return true;
+            return (abaixo75 && r.pct !== null && r.pct < LIMIAR_PRESENCA) ||
+                (evadidos && r.evadido) ||
+                (possivel && !r.evadido && r.evasao);
+        }
 
         let graficoGeralAlunos = null;
         let datasetsGraficoGeralBase = [];
@@ -1079,8 +1482,6 @@
             modoApp = 'historico';
             _uiModo(true);
             document.getElementById('tab-frequencia').classList.remove('nav-ativo');
-            document.getElementById('tab-evasao').classList.remove('nav-ativo');
-            document.getElementById('painel-mes').classList.add('hidden');
             document.getElementById('titulo-tabela').textContent = 'Análise individual do aluno';
             document.getElementById('descricao-aba').textContent =
                 'Envie o histórico escolar (PDF) do aluno e clique em "Analisar aluno".';
@@ -1716,23 +2117,24 @@
         async function gerarPdfHistorico() {
             const j = _historicoAtual;
             if (!j) { mostrarAviso('Analise um histórico primeiro.', 'aviso'); return; }
+            const inst = await exigirPerfilParaRelatorio();
+            if (!inst) return;
 
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('p', 'mm', 'a4');
             const M = 14;
             let y = 14;
 
-            try {
-                const logo = await carregarImagemComoBase64(document.getElementById('logo-iffar-footer'));
-                doc.addImage(logo, 'PNG', M, y, 38, 14);
-            } catch (e) { /* segue sem logo */ }
+            desenharLogoPdf(doc, await logoParaPdf(inst.logo_base64, 38, 16), M, y - 1, 38, 16);
 
             doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
-            doc.text('ANÁLISE INDIVIDUAL DO ALUNO', M + 44, y + 6);
-            doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(110);
-            doc.text('Presença.edu · reconstrução do histórico escolar (SIGAA)', M + 44, y + 11);
+            doc.text('ANÁLISE INDIVIDUAL DO ALUNO', M + 44, y + 5);
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(80);
+            doc.text(doc.splitTextToSize(`${inst.instituicao} — ${rotuloCampus(inst.campus)}`, 138)[0], M + 44, y + 10);
+            doc.setTextColor(110);
+            doc.text('Presença.edu · reconstrução do histórico escolar (SIGAA)', M + 44, y + 14);
             doc.setTextColor(0);
-            y += 22;
+            y += 24;
 
             doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
             doc.text(j.aluno || '—', M, y); y += 5;
@@ -1824,12 +2226,7 @@
                 rot[d.situacao] || d.situacao, num(d.media), d.freq_pct != null ? d.freq_pct + '%' : '—']),
                 [220, 38, 38]);
 
-            const tp = doc.internal.getNumberOfPages();
-            for (let i = 1; i <= tp; i++) {
-                doc.setPage(i);
-                doc.setFontSize(7); doc.setTextColor(150);
-                doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')} · Página ${i}/${tp}`, M, 290);
-            }
+            rodapeInstitucional(doc, inst, M, 182);
 
             const slug = s => (s || '').normalize('NFD')
                 .replace(/[^\x00-\x7F]/g, '')
@@ -1846,8 +2243,6 @@
             }
             if (modoApp === 'historico') { await processarHistorico(); return; }
             cacheFrequencia = [];
-            cacheEvasao = [];
-            mesCacheEvasao = '';
 
             const formCheck = new FormData();
             for (let f of files) formCheck.append('arquivos', f);
@@ -1859,11 +2254,8 @@
                 const disciplinas = await res.json();
 
                 _pesosConfirmados = {};
-                _niveisConfirmados = {};
                 disciplinas.forEach(d => {
-                    const nivel = d.nivel_sugerido || 'superior';
-                    _niveisConfirmados[d.codigo] = nivel;
-                    _pesosConfirmados[d.codigo] = d.peso_sugerido || sugerirPeso(d.carga_horaria, nivel);
+                    _pesosConfirmados[d.codigo] = d.peso_sugerido || sugerirPeso(d.carga_horaria);
                 });
 
                 const validas = disciplinas.filter(d => d.codigo);
@@ -1882,11 +2274,8 @@
         }
 
         function _cardConfigHTML(d) {
-            const nivel = _niveisConfirmados[d.codigo] || 'superior';
-            const peso = _pesosConfirmados[d.codigo] || sugerirPeso(d.carga_horaria, nivel);
+            const peso = _pesosConfirmados[d.codigo] || sugerirPeso(d.carga_horaria);
             const ch = d.carga_horaria ? `${d.carga_horaria}h` : '—';
-            const btnNivel = (v, rot) =>
-                `<button onclick="selecionarNivel('${d.codigo}','${v}')" class="${nivel === v ? 'ativo' : ''}">${rot}</button>`;
             const btnPeriodo = (v) =>
                 `<button onclick="selecionarPeriodo('${d.codigo}',${v})" class="${peso === v ? 'ativo' : ''}">${v}</button>`;
             return `
@@ -1898,13 +2287,6 @@
                         &nbsp;·&nbsp; Docente: ${d.docente || '—'}
                     </div>
                     <div class="flex flex-wrap items-center gap-x-6 gap-y-3 mt-3">
-                        <div class="flex flex-col gap-1">
-                            <span class="text-[10px] text-gray-400 uppercase font-semibold tracking-wider">Nível</span>
-                            <div class="toggle-grupo">
-                                ${btnNivel('integrado', 'Integrado')}
-                                ${btnNivel('superior', 'Superior')}
-                            </div>
-                        </div>
                         <div class="flex flex-col gap-1">
                             <span class="text-[10px] text-gray-400 uppercase font-semibold tracking-wider">Períodos por dia de aula</span>
                             <div class="toggle-grupo">
@@ -1932,14 +2314,6 @@
             _substituirCard(codigo);
         }
 
-        function selecionarNivel(codigo, nivel) {
-            _niveisConfirmados[codigo] = nivel;
-            // re-sugere os períodos/dia pela CH + nível (usuário pode reajustar depois)
-            const d = _disciplinasConfig.find(x => x.codigo === codigo);
-            _pesosConfirmados[codigo] = sugerirPeso(d && d.carga_horaria, nivel);
-            _substituirCard(codigo);
-        }
-
         async function confirmarPeriodosEProcessar() {
             document.getElementById('modal-periodos').classList.add('hidden');
             document.getElementById('loading').classList.remove('hidden');
@@ -1949,34 +2323,21 @@
         async function executarProcessamento() {
             const files = document.getElementById('arquivos').files;
             const formData = new FormData();
-            if (abaAtual === 'evasao') formData.append('mes', document.getElementById('mes_analise').value);
             for (let f of files) formData.append('arquivos', f);
             formData.append('pesos', JSON.stringify(_pesosConfirmados));
 
             try {
-                const endpoint = abaAtual === 'evasao' ? '/analyze' : '/analyze-frequency';
-                const res = await apiFetch(`${API_URL}${endpoint}`, { method: 'POST', body: formData });
-                dadosTabela = await res.json();
+                const res = await apiFetch(`${API_URL}/analyze-frequency`, { method: 'POST', body: formData });
+                const json = await res.json();
+                if (!res.ok || !Array.isArray(json)) throw new Error((json && json.erro) || `HTTP ${res.status}`);
+                dadosTabela = json;
+                cacheFrequencia = [...dadosTabela];
 
-                // nível é apenas rótulo: definido pelo usuário na tela de configuração
-                if (Array.isArray(dadosTabela)) {
-                    dadosTabela.forEach(item => {
-                        const cod = item['Código'] || item['Codigo'] || '';
-                        item['Nível'] = _niveisConfirmados[cod] || '';
-                    });
-                }
-
-                if (abaAtual === 'frequencia') {
-                    cacheFrequencia = [...dadosTabela];
-                } else {
-                    cacheEvasao = [...dadosTabela];
-                    mesCacheEvasao = document.getElementById('mes_analise').value;
-                }
-
+                mesesSelecionados = [];   // novo processamento: volta para "Todos"
                 paginaAtual = 1;
                 filtrarTabela();
             } catch (e) {
-                mostrarAviso("Erro na API", 'erro');
+                mostrarAviso("Erro ao processar os diários: " + e.message, 'erro');
                 console.error(e);
             } finally {
                 document.getElementById('loading').classList.add('hidden');
@@ -2087,7 +2448,6 @@
         let conteudoAtual = 'grafico';
 
         function trocarConteudo(view) {
-            if (view === 'grafico' && abaAtual !== 'frequencia') return;
             conteudoAtual = view;
 
             document.getElementById('ctab-grafico').classList.toggle('ctab-ativo', view === 'grafico');
@@ -2099,7 +2459,7 @@
         }
 
         function renderizarPainelGrafico() {
-            const temDados = dadosTabela && dadosTabela.length > 0 && abaAtual === 'frequencia';
+            const temDados = dadosTabela && dadosTabela.length > 0;
             document.getElementById('grafico-vazio').classList.toggle('hidden', temDados);
             document.getElementById('grafico-conteudo').classList.toggle('hidden', !temDados);
             if (!temDados) return;
@@ -2111,90 +2471,33 @@
             atualizarGraficoGeralCompleto();
         }
 
-        function carregarImagemComoBase64(imgElement) {
-            return new Promise((resolve, reject) => {
-                if (!imgElement) { reject(new Error('Imagem não encontrada.')); return; }
-                const draw = () => {
-                    try {
-                        const canvas = document.createElement('canvas');
-                        canvas.width = imgElement.naturalWidth; canvas.height = imgElement.naturalHeight;
-                        canvas.getContext('2d').drawImage(imgElement, 0, 0);
-                        resolve(canvas.toDataURL('image/png'));
-                    } catch (e) { reject(e); }
-                };
-                if (imgElement.complete && imgElement.naturalWidth > 0) draw();
-                else { imgElement.onload = draw; imgElement.onerror = () => reject(new Error('Erro ao carregar imagem.')); }
-            });
-        }
-
-        function gerarPdfTabelaAtual() {
-            if (abaAtual === 'evasao') gerarPdfDetalhamentoMensal();
-            else gerarPdfFrequenciaGeral();
-        }
-
-        async function gerarPdfDetalhamentoMensal() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('p', 'mm', 'a4');
-            const dadosParaPdf = [...dadosFiltradosAtuais];
-            const logoImg = document.getElementById('logo-iffar-footer');
-            const mesReferencia = document.getElementById('label-mes').innerText;
-            if (!dadosParaPdf.length) { mostrarAviso("Não há dados para gerar o PDF.", 'aviso'); return; }
-            const margemEsq = 14, larguraUtil = 182;
-            let y = 20;
-            const desenharCabecalhoMensal = async () => {
-                doc.setFillColor(34, 139, 34); doc.rect(margemEsq, 15, larguraUtil, 20, 'F');
-                try { doc.addImage(await carregarImagemComoBase64(logoImg), 'PNG', margemEsq + 2, 17, 35, 16); } catch (e) { }
-                doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
-                doc.text("RELATÓRIO MENSAL DE ASSIDUIDADE", margemEsq + 45, 25);
-                doc.setFontSize(10); doc.text(`Período de Referência: ${mesReferencia}`, margemEsq + 45, 30);
-            };
-            await desenharCabecalhoMensal(); y = 45;
-            for (const [idx, item] of dadosParaPdf.entries()) {
-                if (y > 240) { doc.addPage(); await desenharCabecalhoMensal(); y = 45; }
-                doc.setFillColor(245, 245, 245); doc.rect(margemEsq, y, larguraUtil, 7, 'F');
-                doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(0, 0, 0);
-                doc.text(`${idx + 1}. ${item.Nome} (Matrícula: ${item.Matrícula})`, margemEsq + 2, y + 5); y += 12;
-                doc.setFontSize(9);
-                doc.setFont("helvetica", "bold"); doc.text("CURSO:", margemEsq, y); doc.setFont("helvetica", "normal"); doc.text(item.Curso || "Não informado", margemEsq + 15, y); y += 5;
-                doc.setFont("helvetica", "bold"); doc.text("DISCIPLINA:", margemEsq, y); doc.setFont("helvetica", "normal"); doc.text((item.Disciplina || '').split('Cr')[0].trim(), margemEsq + 20, y); y += 5;
-                doc.setFont("helvetica", "bold"); doc.text("DOCENTE:", margemEsq, y); doc.setFont("helvetica", "normal"); doc.text(item.Docente || "Não informado", margemEsq + 20, y); y += 8;
-                doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text(`Detalhamento de Ausências em ${mesReferencia}:`, margemEsq, y); y += 5;
-                const faltasTexto = item['Datas das Faltas'];
-                if (faltasTexto) {
-                    faltasTexto.split(', ').forEach(data => {
-                        if (y > 275) { doc.addPage(); desenharCabecalhoMensal(); y = 45; }
-                        doc.setFont("helvetica", "normal"); doc.setFontSize(8);
-                        doc.setFillColor(200, 0, 0); doc.circle(margemEsq + 2, y - 1, 0.6, 'F');
-                        doc.text(data, margemEsq + 5, y); y += 5;
-                    });
-                } else { doc.setFont("helvetica", "italic"); doc.text("Nenhuma falta registrada neste período.", margemEsq + 5, y); y += 5; }
-                y += 2; doc.setDrawColor(34, 139, 34); doc.setLineWidth(0.4); doc.line(margemEsq, y, margemEsq + larguraUtil, y); y += 5;
-                doc.setFont("helvetica", "bold"); doc.setFontSize(9);
-                doc.text(`Total de faltas no mês: ${item['Total Faltas (Mês)'] || 0}`, margemEsq, y); y += 15;
-            }
-            const tp = doc.internal.getNumberOfPages();
-            for (let i = 1; i <= tp; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150); doc.text(`Página ${i} de ${tp} | Sistema de Monitoramento IFFar`, margemEsq, 285); }
-            doc.save(`Detalhamento_Faltas_${mesReferencia.replace(/\s+/g, '_')}.pdf`);
-        }
-
         async function gerarPdfFrequenciaGeral() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('p', 'mm', 'a4');
             const dadosParaPdf = [...dadosFiltradosAtuais];
-            const logoImg = document.getElementById('logo-iffar-footer');
             if (!dadosParaPdf.length) { mostrarAviso("Não há dados para gerar o PDF.", 'aviso'); return; }
+            const inst = await exigirPerfilParaRelatorio();
+            if (!inst) return;
+            const logo = await logoParaPdf(inst.logo_base64, 35, 16);
             const margemEsq = 14, larguraUtil = 182;
+            const periodo = textoPeriodo();
             let y = 20;
             const desenharCabecalhoPagina = async () => {
-                doc.setFillColor(34, 139, 34); doc.rect(margemEsq, 15, larguraUtil, 20, 'F');
-                try { doc.addImage(await carregarImagemComoBase64(logoImg), 'PNG', margemEsq + 2, 17, 35, 16); } catch (e) { }
+                doc.setFillColor(255, 255, 255); doc.rect(margemEsq, 15, 39, 20, 'F');
+                desenharLogoPdf(doc, logo, margemEsq + 2, 17, 35, 16);
+                doc.setFillColor(34, 139, 34); doc.rect(margemEsq + 39, 15, larguraUtil - 39, 20, 'F');
                 doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
-                doc.text("COORDENAÇÃO DE CURSO", margemEsq + 45, 25);
-                doc.setFontSize(10); doc.text("Relatório Consolidado de Frequência Geral", margemEsq + 45, 30);
+                doc.text(`COORDENAÇÃO DE CURSO - ${inst.sigla}`, margemEsq + 45, 23);
+                doc.setFontSize(10); doc.text(doc.splitTextToSize(`Frequência da turma · Período: ${periodo}`, larguraUtil - 50)[0], margemEsq + 45, 28);
+                doc.setFont("helvetica", "normal"); doc.setFontSize(8);
+                doc.text(doc.splitTextToSize(`${inst.instituicao} — ${rotuloCampus(inst.campus)}`, larguraUtil - 50)[0], margemEsq + 45, 32.5);
             };
             await desenharCabecalhoPagina(); y = 45;
+            const novaPaginaSe = async (limite) => {
+                if (y > limite) { doc.addPage(); await desenharCabecalhoPagina(); y = 45; }
+            };
             for (const [idx, item] of dadosParaPdf.entries()) {
-                if (y > 230) { doc.addPage(); await desenharCabecalhoPagina(); y = 45; }
+                await novaPaginaSe(230);
                 doc.setFillColor(240, 240, 240); doc.rect(margemEsq, y, larguraUtil, 8, 'F');
                 doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(0, 0, 0);
                 doc.text(`${idx + 1}. ${item.Nome} (${item.Matrícula})`, margemEsq + 2, y + 5.5); y += 12;
@@ -2205,131 +2508,127 @@
                 doc.setFillColor(230, 230, 230); doc.rect(margemEsq, y, larguraUtil, 6, 'F');
                 doc.setFont("helvetica", "bold"); doc.text("MÊS", margemEsq + 5, y + 4); doc.text("AULAS", margemEsq + 60, y + 4); doc.text("FALTAS", margemEsq + 100, y + 4); doc.text("% PRESENÇA", margemEsq + 140, y + 4); y += 6;
                 let temDadosMes = false;
-                ordemMeses.forEach(mes => {
-                    const aulas = item[`${mes}_Total_Aulas`];
-                    if (aulas !== undefined && aulas !== "" && aulas > 0) {
-                        temDadosMes = true;
-                        const faltas = item[`${mes}_Dias_Faltados`] ?? 0;
-                        const perc = item[`${mes}_%_Presença`] ?? "0";
-                        doc.setFont("helvetica", "normal");
-                        doc.text(mes, margemEsq + 5, y + 4); doc.text(String(aulas), margemEsq + 60, y + 4); doc.text(String(faltas), margemEsq + 100, y + 4);
-                        if (parseFloat(perc) < 75) doc.setTextColor(200, 0, 0);
-                        doc.text(`${perc}%`, margemEsq + 140, y + 4); doc.setTextColor(0, 0, 0); y += 5;
+                for (const mes of _mesesPeriodo) {
+                    const aulas = Number(item[`${mes}_Total_Aulas`]) || 0;
+                    if (aulas <= 0) continue;
+                    temDadosMes = true;
+                    await novaPaginaSe(270);
+                    const faltas = Number(item[`${mes}_Dias_Faltados`]) || 0;
+                    const perc = item[`${mes}_%_Presença`] ?? "0";
+                    doc.setFont("helvetica", "normal"); doc.setFontSize(8);
+                    doc.text(mes, margemEsq + 5, y + 4); doc.text(String(aulas), margemEsq + 60, y + 4); doc.text(String(faltas), margemEsq + 100, y + 4);
+                    if (parseFloat(perc) < 75) doc.setTextColor(200, 0, 0);
+                    doc.text(`${perc}%`, margemEsq + 140, y + 4); doc.setTextColor(0, 0, 0); y += 5;
+                    const datas = item[`${mes}_Datas_Faltas`];
+                    if (datas) {
+                        doc.setFont("helvetica", "italic"); doc.setFontSize(7); doc.setTextColor(110);
+                        for (const linha of doc.splitTextToSize(`Faltas em: ${datas}`, larguraUtil - 10)) {
+                            await novaPaginaSe(275);
+                            doc.text(linha, margemEsq + 8, y + 3); y += 3.5;
+                        }
+                        doc.setTextColor(0, 0, 0); doc.setFontSize(8); y += 1;
                     }
-                });
-                if (!temDadosMes) { doc.setFont("helvetica", "italic"); doc.text("Sem registros mensais detalhados neste diário.", margemEsq + 5, y + 4); y += 5; }
+                }
+                if (!temDadosMes) { doc.setFont("helvetica", "italic"); doc.text("Sem aulas registradas no período neste diário.", margemEsq + 5, y + 4); y += 5; }
+                await novaPaginaSe(265);
                 y += 2; doc.setDrawColor(34, 139, 34); doc.setLineWidth(0.5); doc.line(margemEsq, y, margemEsq + larguraUtil, y); y += 4;
                 doc.setFont("helvetica", "bold");
-                const totalFaltas = item['Total_Dias_Faltados_Geral'] || 0;
-                const totalPerc = item['%_Presença_Geral'] || 0;
-                doc.text(`RESULTADO ACUMULADO:`, margemEsq, y); doc.text(`Faltas Totais: ${totalFaltas}`, margemEsq + 80, y);
-                if (parseFloat(totalPerc) < 75) doc.setTextColor(200, 0, 0);
-                doc.text(`Presença Geral: ${totalPerc}%`, margemEsq + 140, y); doc.setTextColor(0, 0, 0); y += 15;
+                const r = resumoPeriodo(item);
+                doc.text(periodoEhTodos() ? 'RESULTADO GERAL:' : 'RESULTADO DO PERÍODO:', margemEsq, y);
+                doc.text(`Faltas: ${r.faltas}`, margemEsq + 80, y);
+                if (r.pct !== null && r.pct < 75) doc.setTextColor(200, 0, 0);
+                doc.text(`Presença: ${r.pct === null ? '—' : r.pct + '%'}`, margemEsq + 140, y); doc.setTextColor(0, 0, 0);
+                if (r.evadido) {
+                    y += 5; doc.setTextColor(185, 28, 28);
+                    doc.text(`EVADIDO: ${r.faltasSemestre} faltas no semestre — atingiu 25% da carga horária (limite ${r.limiteFaltas}).`, margemEsq, y);
+                    doc.setTextColor(0, 0, 0);
+                } else if (r.evasao) {
+                    y += 5; doc.setTextColor(180, 83, 9);
+                    doc.text('POSSÍVEL EVASÃO: faltou nas duas últimas aulas registradas do período.', margemEsq, y);
+                    doc.setTextColor(0, 0, 0);
+                }
+                y += 15;
             }
-            const paginas = doc.internal.getNumberOfPages();
-            for (let i = 1; i <= paginas; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150); doc.text(`Gerado em: ${new Date().toLocaleString()} | Página ${i} de ${paginas}`, margemEsq, 285); }
-            doc.save("Frequencia_Geral_Completa_IFFar.pdf");
+            rodapeInstitucional(doc, inst, margemEsq, larguraUtil);
+            const sufixoPeriodo = periodoEhTodos() ? 'Todos_os_meses' : slugArquivo(periodo);
+            doc.save(`Frequencia_Turma_${sufixoPeriodo}_${slugArquivo(inst.sigla)}.pdf`);
         }
 
-        async function trocarAba(aba) {
+        // Só existe o modo "Frequência Turma" para diários (a antiga "Busca por
+        // mês" virou o filtro de meses). Mantém a assinatura por compatibilidade.
+        async function trocarAba(aba = 'frequencia') {
             if (modoApp === 'historico') _limparArquivoSelecionado();
-            abaAtual = aba;
+            abaAtual = 'frequencia';
             modoApp = 'diario';
             _uiModo(false);
             paginaAtual = 1;
             document.getElementById('busca_geral').value = '';
 
-            const tabFreq = document.getElementById('tab-frequencia');
-            const tabEvasao = document.getElementById('tab-evasao');
-            const descricao = document.getElementById('descricao-aba');
-            const painelMes = document.getElementById('painel-mes');
-            const labelMes = document.getElementById('label-mes');
-            const tituloTabela = document.getElementById('titulo-tabela');
-            const tituloCard = document.getElementById('titulo-card-total');
+            document.getElementById('tab-frequencia').classList.add('nav-ativo');
+            document.getElementById('descricao-aba').innerText =
+                'Frequência dos alunos por mês — escolha os meses no filtro para ver um período.';
+            document.getElementById('titulo-tabela').innerText = 'Frequência da turma';
+            document.getElementById('titulo-card-total').innerText = 'Total de alunos';
+            colunaOrdenacao = 'nome';
+            ordemDesc = false;
+
+            if (cacheFrequencia.length > 0) {
+                dadosTabela = [...cacheFrequencia];
+                filtrarTabela();
+                return;
+            }
+
             const files = document.getElementById('arquivos').files;
-            const ctabGrafico = document.getElementById('ctab-grafico');
-
-            if (aba === 'frequencia') {
-                tabFreq.classList.add('nav-ativo');
-                tabEvasao.classList.remove('nav-ativo');
-
-                descricao.innerText = 'Visualize a frequência dos alunos em todos os meses disponíveis no diário.';
-                painelMes.classList.add('hidden');
-                labelMes.innerText = 'Todos os meses';
-                tituloTabela.innerText = 'Relatório de frequência por mês';
-                tituloCard.innerText = 'Total de alunos';
-                colunaOrdenacao = 'nome';
-                ordemDesc = false;
-                ctabGrafico.disabled = false;
-
-                if (cacheFrequencia.length > 0) {
-                    dadosTabela = [...cacheFrequencia];
-                    filtrarTabela();
-                    return;
-                }
-
-                if (files.length > 0) {
-                    document.getElementById('loading').classList.remove('hidden');
-                    await executarProcessamento();
-                    return;
-                }
-            } else {
-                tabFreq.classList.remove('nav-ativo');
-                tabEvasao.classList.add('nav-ativo');
-
-                descricao.innerText = 'Busque alunos com padrão de evasão considerando o mês selecionado.';
-                painelMes.classList.remove('hidden');
-                labelMes.innerText = document.getElementById('mes_analise').value;
-                tituloTabela.innerText = 'Alunos com evasão';
-                tituloCard.innerText = 'Total de alunos faltantes';
-                colunaOrdenacao = 'faltas';
-                ordemDesc = true;
-                ctabGrafico.disabled = true;
-                trocarConteudo('planilha');
-
-                const mesAtual = document.getElementById('mes_analise').value;
-
-                if (cacheEvasao.length > 0 && mesCacheEvasao === mesAtual) {
-                    dadosTabela = [...cacheEvasao];
-                    filtrarTabela();
-                    return;
-                }
-
-                if (files.length > 0) {
-                    document.getElementById('loading').classList.remove('hidden');
-                    await executarProcessamento();
-                    return;
-                }
+            if (files.length > 0) {
+                document.getElementById('loading').classList.remove('hidden');
+                await executarProcessamento();
+                return;
             }
 
             dadosTabela = [];
             dadosFiltradosAtuais = [];
+            atualizarMesesPeriodo();
+            renderizarFiltroMeses();
             renderizarTabela([]);
             atualizarCardsResumo([]);
             atualizarPaginacao([]);
             document.getElementById('vazio').classList.add('hidden');
         }
 
+        // Resumo do período por linha, calculado uma vez a cada filtragem.
+        let _resumoPorLinha = new WeakMap();
+        function resumoDe(linha) {
+            let r = _resumoPorLinha.get(linha);
+            if (!r) { r = resumoPeriodo(linha); _resumoPorLinha.set(linha, r); }
+            return r;
+        }
+
         function filtrarTabela() {
+            atualizarMesesPeriodo();
+            _resumoPorLinha = new WeakMap();
+            renderizarFiltroMeses();
+
             const termo = document.getElementById('busca_geral').value.toLowerCase();
 
-            dadosFiltradosAtuais = dadosTabela.filter(a =>
+            // Base = busca/disciplina; os cards contam sobre ela. Os filtros de
+            // situação (cards/botões) só recortam a planilha e o PDF — assim os
+            // números dos cards não mudam ao clicar num deles.
+            const baseBusca = dadosTabela.filter(a =>
                 (a.Nome || '').toLowerCase().includes(termo) ||
                 (a.Disciplina || '').toLowerCase().includes(termo) ||
                 String(a['Matrícula'] || '').toLowerCase().includes(termo) ||
                 String(a['Docente'] || '').toLowerCase().includes(termo)
             );
+            dadosFiltradosAtuais = baseBusca.filter(a => passaFiltroEvasao(resumoDe(a)));
 
             if (colunaOrdenacao === 'faltas_geral') {
                 dadosFiltradosAtuais.sort((a, b) => {
-                    const va = Number(a['Total_Dias_Faltados_Geral'] || 0);
-                    const vb = Number(b['Total_Dias_Faltados_Geral'] || 0);
+                    const va = resumoDe(a).faltas, vb = resumoDe(b).faltas;
                     return ordemDesc ? vb - va : va - vb;
                 });
             } else if (colunaOrdenacao === 'percentual_geral') {
                 dadosFiltradosAtuais.sort((a, b) => {
-                    const va = Number(a['%_Presença_Geral'] || 0);
-                    const vb = Number(b['%_Presença_Geral'] || 0);
+                    const va = resumoDe(a).pct ?? -1, vb = resumoDe(b).pct ?? -1;
                     return ordemDesc ? vb - va : va - vb;
                 });
             }
@@ -2340,7 +2639,7 @@
 
             const inicio = (paginaAtual - 1) * itensPorPagina;
             renderizarTabela(dadosFiltradosAtuais.slice(inicio, inicio + itensPorPagina));
-            atualizarCardsResumo(dadosFiltradosAtuais);
+            atualizarCardsResumo(baseBusca);
             atualizarPaginacao(dadosFiltradosAtuais);
             document.getElementById('vazio').classList.toggle('hidden', dadosFiltradosAtuais.length > 0);
 
@@ -2349,31 +2648,21 @@
 
         function atualizarCabecalhoTabela() {
             const thead = document.getElementById('tabela-cabecalho');
-            if (abaAtual === 'evasao') {
-                thead.innerHTML = `<tr class="bg-gray-100 text-gray-700">
-                    <th class="px-4 py-2 text-left">Nome ⬍</th>
-                    <th class="px-4 py-2 text-center whitespace-nowrap">Temporal</th>
-                    <th class="px-4 py-2 text-left">Matrícula</th>
-                    <th class="px-4 py-2 text-left">Disciplina</th>
-                    <th class="px-4 py-2 text-center">Faltas ⬍</th>
-                    <th class="px-4 py-2 text-left">Datas</th>
-                </tr>`;
-            } else {
-                let linhaMeses = `<tr class="bg-gray-200 text-gray-800">
-                    <th rowspan="2" class="px-4 py-2 text-left whitespace-nowrap align-middle">Nome ⬍</th>
-                    <th rowspan="2" class="px-4 py-2 text-center whitespace-nowrap align-middle">Temporal</th>
-                    <th rowspan="2" class="px-4 py-2 text-left whitespace-nowrap align-middle">Matrícula</th>
-                    <th rowspan="2" class="px-4 py-2 text-left whitespace-nowrap align-middle">Disciplina</th>`;
-                let linhaSub = `<tr class="bg-gray-100 text-gray-700">`;
-                ordemMeses.forEach(mes => {
-                    if (dadosTabela.some(item => Object.prototype.hasOwnProperty.call(item, `${mes}_Total_Aulas`))) {
-                        linhaMeses += `<th colspan="3" class="text-center font-bold border-l border-gray-300 px-2 py-2">${mes}</th>`;
-                        linhaSub += `<th class="px-2 py-2 text-center border-l border-gray-200">Aulas</th><th class="px-2 py-2 text-center">Faltas</th><th class="px-2 py-2 text-center">%</th>`;
-                    }
-                });
-                linhaMeses += `<th rowspan="2" onclick="ordenarPorFaltasGeral()" class="px-4 py-2 text-center border-l border-gray-300 align-middle cursor-pointer hover:bg-gray-300">Faltas Geral ⬍</th><th rowspan="2" onclick="ordenarPorPercentualGeral()" class="px-4 py-2 text-center align-middle cursor-pointer hover:bg-gray-300">% Geral ⬍</th></tr>`;
-                thead.innerHTML = linhaMeses + linhaSub + `</tr>`;
-            }
+            const rot = periodoEhTodos() ? 'Geral' : 'Período';
+            let linhaMeses = `<tr class="bg-gray-200 text-gray-800">
+                <th rowspan="2" class="px-4 py-2 text-left whitespace-nowrap align-middle">Nome ⬍</th>
+                <th rowspan="2" class="px-4 py-2 text-center whitespace-nowrap align-middle">Temporal</th>
+                <th rowspan="2" class="px-4 py-2 text-left whitespace-nowrap align-middle">Matrícula</th>
+                <th rowspan="2" class="px-4 py-2 text-left whitespace-nowrap align-middle">Disciplina</th>`;
+            let linhaSub = `<tr class="bg-gray-100 text-gray-700">`;
+            _mesesPeriodo.forEach(mes => {
+                linhaMeses += `<th colspan="3" class="text-center font-bold border-l border-gray-300 px-2 py-2">${mes}</th>`;
+                linhaSub += `<th class="px-2 py-2 text-center border-l border-gray-200">Aulas</th><th class="px-2 py-2 text-center">Faltas</th><th class="px-2 py-2 text-center">%</th>`;
+            });
+            linhaMeses += `<th rowspan="2" onclick="ordenarPorFaltasGeral()" class="px-4 py-2 text-center border-l border-gray-300 align-middle cursor-pointer hover:bg-gray-300 whitespace-nowrap">Faltas ${rot} ⬍</th>` +
+                `<th rowspan="2" onclick="ordenarPorPercentualGeral()" class="px-4 py-2 text-center align-middle cursor-pointer hover:bg-gray-300 whitespace-nowrap">% ${rot} ⬍</th>` +
+                `<th rowspan="2" class="px-4 py-2 text-left align-middle whitespace-nowrap">Datas das faltas</th></tr>`;
+            thead.innerHTML = linhaMeses + linhaSub + `</tr>`;
         }
 
         async function gerarPdfConsolidadoAluno() {
@@ -2382,16 +2671,13 @@
                 return;
             }
 
+            const inst = await exigirPerfilParaRelatorio();
+            if (!inst) return;
+
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('p', 'mm', 'a4');
             const alunoPrincipal = registrosFiltradosAluno[0];
-
-            let logoBase64 = null;
-            try {
-                logoBase64 = await carregarImagemComoBase64(document.getElementById('logo-iffar-footer'));
-            } catch (e) {
-                console.warn("Erro ao carregar logo:", e);
-            }
+            const logo = await logoParaPdf(inst.logo_base64, 40, 12);
 
             const canvas = document.getElementById('grafico-frequencia');
             const margemEsq = 14, larguraUtil = 182;
@@ -2401,9 +2687,10 @@
             const coordenador = alunoPrincipal['Coordenador do Curso'] || 'Não informado';
 
             const desenharCabecalho = () => {
-                if (logoBase64) {
-                    doc.addImage(logoBase64, 'PNG', margemEsq, 15, 40, 12);
-                }
+                desenharLogoPdf(doc, logo, margemEsq, 15, 40, 12);
+                doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(90);
+                doc.text(doc.splitTextToSize(`${inst.instituicao} — ${rotuloCampus(inst.campus)}`, larguraUtil - 46)[0],
+                    margemEsq + 46, 22);
 
                 doc.setFillColor(34, 139, 34);
                 doc.rect(margemEsq, 30, larguraUtil, 15, 'F');
@@ -2411,7 +2698,7 @@
                 doc.setFont("helvetica", "bold");
                 doc.setFontSize(14);
                 doc.setTextColor(255, 255, 255);
-                doc.text("COORDENAÇÃO DE CURSO - IFFar", margemEsq + 5, 40);
+                doc.text(`COORDENAÇÃO DE CURSO - ${inst.sigla}`, margemEsq + 5, 40);
             };
 
             desenharCabecalho();
@@ -2529,17 +2816,7 @@
                 doc.line(margemEsq, y, margemEsq + larguraUtil, y);
             });
 
-            const pageCount = doc.internal.getNumberOfPages();
-            for (let i = 1; i <= pageCount; i++) {
-                doc.setPage(i);
-                doc.setFontSize(8);
-                doc.setTextColor(150);
-                doc.text(
-                    `Página ${i} de ${pageCount} | Relatório Consolidado Institucional | Emitido em: ${new Date().toLocaleString('pt-BR')}`,
-                    margemEsq,
-                    285
-                );
-            }
+            rodapeInstitucional(doc, inst, margemEsq, larguraUtil);
 
             doc.save(`Consolidado_${alunoPrincipal.Nome.replace(/\s+/g, '_')}.pdf`);
         }
@@ -2550,6 +2827,11 @@
             return v < 75 ? 'celula-presenca-baixa' : (v === 75 ? 'celula-presenca-75' : 'celula-neutra');
         }
 
+        const SELO_EVASAO = `<span title="Faltou nas duas últimas aulas registradas do último mês do período"
+            class="ml-1.5 align-middle text-[10px] font-bold uppercase tracking-wide bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded">possível evasão</span>`;
+        const seloEvadido = (r) => `<span title="${r.faltasSemestre} faltas no semestre — limite de ${r.limiteFaltas} (25% da carga horária)"
+            class="ml-1.5 align-middle text-[10px] font-bold uppercase tracking-wide bg-red-200 text-red-800 px-1.5 py-0.5 rounded">evadido</span>`;
+
         function renderizarTabela(data) {
             atualizarCabecalhoTabela();
             const corpo = document.getElementById('tabela-corpo');
@@ -2557,37 +2839,27 @@
             data.forEach((a, index) => {
                 const tr = document.createElement('tr');
                 const indiceOriginal = dadosTabela.indexOf(a);
-                tr.className = `${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 transition border-b`;
-                if (abaAtual === 'evasao') {
-                    const faltasMes = Number(a['Total Faltas (Mês)'] || 0);
-                    tr.innerHTML = `
-                        <td onclick="abrirModalConsolidadoAluno('${a.Matrícula}')" class="px-4 py-2 font-medium text-blue-700 cursor-pointer hover:underline whitespace-nowrap">${a.Nome || ''}</td>
-                        <td class="px-4 py-2 text-center text-gray-300 italic">-</td>
-                        <td class="px-4 py-2 text-black">${a.Matrícula || ''}</td>
-                        <td class="px-4 py-2 text-black">${montarHtmlDisciplinaComMetadados(a)}</td>
-                        <td class="px-4 py-2 text-center font-bold text-black ${classeCelulaFalta(faltasMes)}">${faltasMes}</td>
-                        <td class="px-4 py-2 text-xs text-black italic ${classeCelulaFalta(faltasMes)}">${a['Datas das Faltas'] || ''}</td>`;
-                } else {
-                    let colunasMesesHtml = '';
-                    ordemMeses.forEach(mes => {
-                        if (dadosTabela.some(item => Object.prototype.hasOwnProperty.call(item, `${mes}_Total_Aulas`))) {
-                            colunasMesesHtml += `
-                                <td class="px-4 py-2 text-center border-l border-gray-100">${a[`${mes}_Total_Aulas`] ?? ''}</td>
-                                <td class="px-4 py-2 text-center ${classeCelulaFalta(a[`${mes}_Dias_Faltados`])}">${a[`${mes}_Dias_Faltados`] ?? ''}</td>
-                                <td class="px-4 py-2 text-center ${classeCelulaPresenca(a[`${mes}_%_Presença`])}">${a[`${mes}_%_Presença`] ?? ''}</td>`;
-                        }
-                    });
-                    tr.innerHTML = `
-                        <td onclick="abrirModalConsolidadoAluno('${a.Matrícula}')" class="px-4 py-2 font-medium text-blue-700 cursor-pointer hover:underline whitespace-nowrap">${a.Nome || ''}</td>
-                        <td class="px-4 py-2 text-center">
-                            <button onclick="abrirModalFrequencia(${indiceOriginal})" class="px-3 py-1 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm">Ver gráfico</button>
-                        </td>
-                        <td class="px-4 py-2 text-black whitespace-nowrap">${a.Matrícula || ''}</td>
-                        <td class="px-4 py-2 text-black">${montarHtmlDisciplinaComMetadados(a)}</td>
-                        ${colunasMesesHtml}
-                        <td class="px-4 py-2 text-center font-bold border-l border-gray-100 ${classeCelulaFalta(a['Total_Dias_Faltados_Geral'])}">${a['Total_Dias_Faltados_Geral'] ?? 0}</td>
-                        <td class="px-4 py-2 text-center font-bold ${classeCelulaPresenca(a['%_Presença_Geral'])}">${a['%_Presença_Geral'] ?? 0}</td>`;
-                }
+                const r = resumoDe(a);
+                // Linha inteira: vermelho-claro se evadido, amarelo se possível evasão.
+                const fundo = r.evadido ? 'bg-red-50 hover:bg-red-100'
+                    : r.evasao ? 'bg-yellow-100 hover:bg-yellow-200'
+                        : `${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50`;
+                tr.className = `${fundo} transition border-b`;
+                const colunasMesesHtml = _mesesPeriodo.map(mes => `
+                    <td class="px-4 py-2 text-center border-l border-gray-100">${a[`${mes}_Total_Aulas`] ?? ''}</td>
+                    <td class="px-4 py-2 text-center ${classeCelulaFalta(a[`${mes}_Dias_Faltados`])}">${a[`${mes}_Dias_Faltados`] ?? ''}</td>
+                    <td class="px-4 py-2 text-center ${classeCelulaPresenca(a[`${mes}_%_Presença`])}">${a[`${mes}_%_Presença`] ?? ''}</td>`).join('');
+                tr.innerHTML = `
+                    <td class="px-4 py-2 whitespace-nowrap"><span onclick="abrirModalConsolidadoAluno('${a.Matrícula}')" class="font-medium text-blue-700 cursor-pointer hover:underline">${a.Nome || ''}</span>${r.evadido ? seloEvadido(r) : r.evasao ? SELO_EVASAO : ''}</td>
+                    <td class="px-4 py-2 text-center">
+                        <button onclick="abrirModalFrequencia(${indiceOriginal})" class="px-3 py-1 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition shadow-sm">Ver gráfico</button>
+                    </td>
+                    <td class="px-4 py-2 text-black whitespace-nowrap">${a.Matrícula || ''}</td>
+                    <td class="px-4 py-2 text-black">${montarHtmlDisciplinaComMetadados(a)}</td>
+                    ${colunasMesesHtml}
+                    <td class="px-4 py-2 text-center font-bold border-l border-gray-100 ${classeCelulaFalta(r.faltas)}">${r.faltas}</td>
+                    <td class="px-4 py-2 text-center font-bold ${r.pct === null ? '' : classeCelulaPresenca(r.pct)}">${r.pct === null ? '—' : r.pct}</td>
+                    <td class="px-4 py-2 text-xs text-gray-600 min-w-[14rem]">${r.datas || '<span class="text-gray-300">—</span>'}</td>`;
                 corpo.appendChild(tr);
             });
         }
@@ -2595,12 +2867,18 @@
         function atualizarCardsResumo(data) {
             document.getElementById('card-total-alunos').innerText = data.length;
 
-            const somaPresenca = data.reduce((acc, item) => acc + Number(item['%_Presença_Geral'] || 0), 0);
-            const frequenciaMedia = data.length ? (somaPresenca / data.length).toFixed(0) : 0;
-            const alertas = data.filter(item => Number(item['%_Presença_Geral'] || 0) < 75).length;
+            // Indicadores do período filtrado (linhas sem aula no período ficam de fora da média).
+            const comAula = data.map(resumoDe).filter(r => r.pct !== null);
+            const frequenciaMedia = comAula.length
+                ? (comAula.reduce((acc, r) => acc + r.pct, 0) / comAula.length).toFixed(0) : 0;
+            const alertas = comAula.filter(r => r.pct < LIMIAR_PRESENCA).length;
+            const evadidos = data.filter(item => resumoDe(item).evadido).length;
+            const evasoes = data.filter(item => !resumoDe(item).evadido && resumoDe(item).evasao).length;
 
             document.getElementById('card-frequencia-media').innerText = `${frequenciaMedia}%`;
             document.getElementById('card-alertas').innerText = alertas;
+            document.getElementById('card-evasao').innerText = evasoes;
+            document.getElementById('card-evadidos').innerText = evadidos;
 
             const map = {};
             data.forEach(a => {
@@ -2612,8 +2890,7 @@
                         docente: a.Docente || '-',
                         matriculaDocente: a['Matrícula Docente'] || '',
                         curso: a.Curso || '-',
-                        coordenador: a['Coordenador do Curso'] || '-',
-                        nivel: a['Nível'] || ''
+                        coordenador: a['Coordenador do Curso'] || '-'
                     };
                 }
 
@@ -2638,7 +2915,6 @@
                     </div>
                 </div>
                 <div class="flex items-center gap-1.5 mt-2">
-                    ${info.nivel ? `<span class="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${info.nivel === 'integrado' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'}">${info.nivel === 'integrado' ? 'Integrado' : 'Superior'}</span>` : ''}
                     <span class="text-[10px] text-gray-500 truncate">${info.docente}</span>
                 </div>
             </div>
@@ -2817,7 +3093,8 @@
                     }
                 });
 
-                const geral = normalizarNumero(item['%_Presença_Geral']);
+                // % do período filtrado (com "Todos", igual ao % geral)
+                const geral = resumoDe(item).pct;
                 if (geral !== null) {
                     ref.somaMediaGeral += geral;
                     ref.qtdMediaGeral += 1;
@@ -2873,7 +3150,7 @@
                 return false;
             });
 
-            const meses = obterMesesPresentes();
+            const meses = _mesesPeriodo.length ? _mesesPeriodo : obterMesesPresentes();
             const indices = meses.map(m => ordemMeses.indexOf(m));
 
             const datasets = alunos.map(aluno => ({
@@ -3105,25 +3382,6 @@
                 : `${n} arquivos selecionados`;
         });
 
-        document.getElementById('mes_analise').addEventListener('change', async function () {
-            if (abaAtual !== 'evasao') return;
-
-            const mesAtual = this.value;
-            document.getElementById('label-mes').innerText = mesAtual;
-
-            if (cacheEvasao.length > 0 && mesCacheEvasao === mesAtual) {
-                dadosTabela = [...cacheEvasao];
-                paginaAtual = 1;
-                filtrarTabela();
-                return;
-            }
-
-            const files = document.getElementById('arquivos').files;
-            if (files.length > 0) {
-                document.getElementById('loading').classList.remove('hidden');
-                await executarProcessamento();
-            }
-        });
     </script>
 </body>
 
