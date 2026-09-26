@@ -183,17 +183,19 @@ def exige_admin(view):
 # Enviadas por SMTP com a conta do admin (SMTP_USER / SMTP_PASSWORD — no
 # Gmail/Google Workspace, uma "senha de app"). Sem SMTP_USER configurado, o
 # envio é pulado. Falha no envio NUNCA derruba a solicitação nem a decisão:
-# só é registrada no log e devolvida como email_enviado=false.
+# só é registrada no log e devolvida como email_enviado=false (e, para o
+# admin, o motivo em email_erro).
 
 EMAIL_CONTATO = "rafael.parizi@iffarroupilha.edu.br"
 LINK_ACESSO = os.environ.get("APP_URL", "https://rafaelparizi.github.io/conta-faltas/auth.html")
 
 
 def _enviar_email(para, assunto, texto, html_corpo):
+    """Devolve (enviado: bool, motivo_da_falha: str | None)."""
     usuario = os.environ.get("SMTP_USER", "").strip()
     if not usuario:
         print(f"E-mail não enviado para {para} (SMTP_USER não configurado): {assunto}")
-        return False
+        return False, "SMTP_USER não configurado na API"
     senha = os.environ.get("SMTP_PASSWORD", "")
     host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
     porta = int(os.environ.get("SMTP_PORT", "587"))
@@ -219,10 +221,10 @@ def _enviar_email(para, assunto, texto, html_corpo):
             if senha:
                 servidor.login(usuario, senha)
             servidor.send_message(msg)
-        return True
+        return True, None
     except Exception as e:
         print(f"Falha ao enviar e-mail para {para} ({assunto}): {e}")
-        return False
+        return False, f"{type(e).__name__}: {e}"
 
 
 def _html_email(paragrafos_html):
@@ -360,7 +362,7 @@ def auth_solicitar():
         "status": "pendente",
         "criado_em": fb_firestore.SERVER_TIMESTAMP,
     })
-    enviado = notificar_solicitacao_recebida(email, nome, curso)
+    enviado, _ = notificar_solicitacao_recebida(email, nome, curso)
     return jsonify({"status": "pendente", "email": email, "email_enviado": enviado})
 
 
@@ -421,12 +423,13 @@ def admin_decidir():
             "aprovado_em": fb_firestore.SERVER_TIMESTAMP,
         })
         sol_ref.update({"status": "aprovado"})
-        enviado = notificar_acesso_aprovado(email, dados_sol.get("nome", ""))
+        enviado, erro_email = notificar_acesso_aprovado(email, dados_sol.get("nome", ""))
     else:
         sol_ref.update({"status": "rejeitado"})
-        enviado = notificar_acesso_recusado(email, dados_sol.get("nome", ""))
+        enviado, erro_email = notificar_acesso_recusado(email, dados_sol.get("nome", ""))
 
-    return jsonify({"status": "ok", "email": email, "decisao": decisao, "email_enviado": enviado})
+    return jsonify({"status": "ok", "email": email, "decisao": decisao,
+                    "email_enviado": enviado, "email_erro": erro_email})
 
 
 # =========================================================
