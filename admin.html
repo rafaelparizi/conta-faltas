@@ -148,6 +148,10 @@
                 const json = await res.json();
                 if (!res.ok) throw new Error(json.erro || 'Erro ao registrar decisão.');
                 card.remove();
+                if (json.email_enviado === false) {
+                    alert(`Decisão registrada, mas o e-mail para ${email} não foi enviado ` +
+                        '(verifique SMTP_USER/SMTP_PASSWORD na API). Avise a pessoa manualmente.');
+                }
                 const lista = document.getElementById('lista-solicitacoes');
                 if (!lista.children.length) document.getElementById('bloco-vazio').classList.remove('hidden');
             } catch (e) {

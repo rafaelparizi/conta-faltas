@@ -25,6 +25,12 @@ services:
     # firebase-service-account.json nesta pasta — já ignorado pelo git.
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/firebase-service-account.json
+    # Opcional: SMTP_USER / SMTP_PASSWORD para os e-mails de notificação
+    # (arquivo .env nesta pasta, já ignorado pelo git). Sem ele, os e-mails
+    # são pulados e o resto funciona normalmente.
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - ./firebase-service-account.json:/run/secrets/firebase-service-account.json:ro
     restart: unless-stopped

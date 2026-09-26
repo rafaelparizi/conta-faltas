@@ -46,6 +46,22 @@ ferramenta restrito a **coordenadores aprovados**.
   abre `admin.html`: lista as solicitações pendentes, abre o comprovante num
   modal e tem os botões **Aprovar / Recusar** (`/admin/pendentes`,
   `/admin/comprovante/<email>`, `/admin/decidir`).
+- **Notificações por e-mail** para quem pediu acesso, enviadas por SMTP com a
+  conta do admin (`SMTP_USER` / `SMTP_PASSWORD`; `Reply-To` sempre
+  `rafael.parizi@iffarroupilha.edu.br`):
+  1. ao enviar o pedido — "solicitação recebida, em análise";
+  2. ao aprovar — acesso aprovado, com o passo a passo para entrar (link do
+     `auth.html`, "Entrar com Google" com a mesma conta, enviar os diários);
+  3. ao recusar — não aprovado, com orientação para entrar em contato por e-mail.
+
+  Falha no envio (ou SMTP não configurado) nunca bloqueia o pedido nem a
+  decisão: a API devolve `email_enviado: false` e o `admin.html` avisa para
+  contatar a pessoa manualmente. Variáveis opcionais: `SMTP_HOST` (padrão
+  `smtp.gmail.com`), `SMTP_PORT` (padrão `587`; `465` usa SSL direto) e
+  `APP_URL` (link de acesso nos e-mails).
+- **Status do pedido**: sem registro em `coordenadores`, vale o status da
+  solicitação (`pendente` / `rejeitado`) — quem já pediu vê "em análise" ou
+  "não aprovado" ao entrar, e não o formulário de novo.
 - **Comprovante no Firestore**, em base64 dentro do documento da solicitação
   — sem Firebase Storage, que exige plano pago (Blaze) para ser habilitado.
 - **A API também exige login**: todas as rotas de dados (`/check-disciplines`,
@@ -331,7 +347,8 @@ docker compose up -d --build
   `nginx-dev.conf`).
 - API: `http://localhost:5001`. Precisa da chave da conta de serviço do
   Firebase salva como `firebase-service-account.json` na raiz do projeto
-  (ignorada pelo git), montada no container.
+  (ignorada pelo git), montada no container. Para testar os e-mails, crie um
+  `.env` (também ignorado) com `SMTP_USER` e `SMTP_PASSWORD` — é opcional.
 - Para o front usar a API local, alterne a constante `API_URL` para
   `http://127.0.0.1:5001` em `auth.html`, `presente.html` e `admin.html` —
   e volte para a da Vercel antes de commitar.

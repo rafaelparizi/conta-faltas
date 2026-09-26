@@ -1,9 +1,14 @@
 import os
 import re
+import ssl
+import html
 import json
+import smtplib
 import functools
 import unicodedata
 import tempfile
+from email.message import EmailMessage
+from email.utils import formataddr
 from dataclasses import dataclass, field
 from typing import Optional
 import pandas as pd
@@ -100,6 +105,14 @@ def _status_coordenador(email):
     doc = _db.collection("coordenadores").document(email).get()
     if doc.exists:
         return (doc.to_dict() or {}).get("status", "aprovado")
+    # Sem registro de coordenador: vale o status da solicitação (se houver),
+    # senão quem já pediu acesso veria o formulário de novo em vez de
+    # "em análise" / "não aprovado".
+    sol = _db.collection("solicitacoes").document(email).get()
+    if sol.exists:
+        status_sol = (sol.to_dict() or {}).get("status")
+        if status_sol in ("pendente", "rejeitado"):
+            return status_sol
     return None
 
 
@@ -141,6 +154,140 @@ def exige_admin(view):
         request.email_usuario = email
         return view(*args, **kwargs)
     return wrapper
+
+
+# =========================================================
+# NOTIFICAÇÕES POR E-MAIL (para quem pediu acesso)
+# =========================================================
+#
+# Enviadas por SMTP com a conta do admin (SMTP_USER / SMTP_PASSWORD — no
+# Gmail/Google Workspace, uma "senha de app"). Sem SMTP_USER configurado, o
+# envio é pulado. Falha no envio NUNCA derruba a solicitação nem a decisão:
+# só é registrada no log e devolvida como email_enviado=false.
+
+EMAIL_CONTATO = "rafael.parizi@iffarroupilha.edu.br"
+LINK_ACESSO = os.environ.get("APP_URL", "https://rafaelparizi.github.io/conta-faltas/auth.html")
+
+
+def _enviar_email(para, assunto, texto, html_corpo):
+    usuario = os.environ.get("SMTP_USER", "").strip()
+    if not usuario:
+        print(f"E-mail não enviado para {para} (SMTP_USER não configurado): {assunto}")
+        return False
+    senha = os.environ.get("SMTP_PASSWORD", "")
+    host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+    porta = int(os.environ.get("SMTP_PORT", "587"))
+
+    msg = EmailMessage()
+    msg["Subject"] = assunto
+    msg["From"] = formataddr(("Rafael Parizi · presente.edu", usuario))
+    msg["To"] = para
+    msg["Reply-To"] = EMAIL_CONTATO
+    msg.set_content(texto)
+    msg.add_alternative(html_corpo, subtype="html")
+
+    try:
+        if porta == 465:
+            servidor = smtplib.SMTP_SSL(host, porta, timeout=15, context=ssl.create_default_context())
+        else:
+            servidor = smtplib.SMTP(host, porta, timeout=15)
+            servidor.ehlo()
+            if servidor.has_extn("starttls"):
+                servidor.starttls(context=ssl.create_default_context())
+                servidor.ehlo()
+        with servidor:
+            if senha:
+                servidor.login(usuario, senha)
+            servidor.send_message(msg)
+        return True
+    except Exception as e:
+        print(f"Falha ao enviar e-mail para {para} ({assunto}): {e}")
+        return False
+
+
+def _html_email(paragrafos_html):
+    corpo = "".join(f'<p style="margin:0 0 14px">{p}</p>' for p in paragrafos_html)
+    return (
+        '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;'
+        'color:#1e293b;max-width:560px">'
+        f'{corpo}'
+        '<p style="margin:24px 0 0;color:#64748b;font-size:13px">Rafael Parizi<br>'
+        f'presente.edu · <a href="mailto:{EMAIL_CONTATO}" style="color:#32a041">{EMAIL_CONTATO}</a></p>'
+        '</div>'
+    )
+
+
+def _assinatura_texto():
+    return f"\n\nRafael Parizi\npresente.edu · {EMAIL_CONTATO}\n"
+
+
+def notificar_solicitacao_recebida(email, nome, curso):
+    n, c = html.escape(nome), html.escape(curso)
+    texto = (
+        f"Olá, {nome}.\n\n"
+        f"Recebi sua solicitação de acesso ao presente.edu como coordenador(a) do curso {curso}. "
+        "Ela está em análise, e você vai receber outro e-mail assim que ela for avaliada.\n\n"
+        "Enquanto isso, se entrar no sistema, vai ver o aviso \"Solicitação em análise\".\n\n"
+        f"Se tiver alguma dúvida, é só responder este e-mail ou escrever para {EMAIL_CONTATO}."
+        + _assinatura_texto()
+    )
+    html_corpo = _html_email([
+        f"Olá, {n}.",
+        f"Recebi sua solicitação de acesso ao <strong>presente.edu</strong> como coordenador(a) do "
+        f"curso <strong>{c}</strong>. Ela está <strong>em análise</strong>, e você vai receber outro "
+        "e-mail assim que ela for avaliada.",
+        "Enquanto isso, se entrar no sistema, vai ver o aviso “Solicitação em análise”.",
+        f'Se tiver alguma dúvida, é só responder este e-mail ou escrever para '
+        f'<a href="mailto:{EMAIL_CONTATO}" style="color:#32a041">{EMAIL_CONTATO}</a>.',
+    ])
+    return _enviar_email(email, "presente.edu — solicitação de acesso recebida", texto, html_corpo)
+
+
+def notificar_acesso_aprovado(email, nome):
+    n, e = html.escape(nome or ""), html.escape(email)
+    saudacao = f"Olá, {nome}." if nome else "Olá."
+    texto = (
+        f"{saudacao}\n\n"
+        "Sua solicitação de acesso ao presente.edu foi aprovada. Para entrar:\n\n"
+        f"1. Acesse {LINK_ACESSO}\n"
+        f"2. Clique em \"Entrar com Google\" e use esta mesma conta ({email}).\n"
+        "3. Você vai direto para a ferramenta. Na barra lateral, envie os diários de classe "
+        "(PDF exportado do SIGAA) e clique em \"Processar relatório\".\n\n"
+        f"Qualquer dúvida, é só responder este e-mail ou escrever para {EMAIL_CONTATO}."
+        + _assinatura_texto()
+    )
+    html_corpo = _html_email([
+        f"Olá, {n}." if nome else "Olá.",
+        "Sua solicitação de acesso ao <strong>presente.edu</strong> foi <strong>aprovada</strong>. Para entrar:",
+        f'1. Acesse <a href="{LINK_ACESSO}" style="color:#32a041">{LINK_ACESSO}</a><br>'
+        f'2. Clique em <strong>“Entrar com Google”</strong> e use esta mesma conta ({e}).<br>'
+        '3. Você vai direto para a ferramenta. Na barra lateral, envie os diários de classe '
+        '(PDF exportado do SIGAA) e clique em <strong>“Processar relatório”</strong>.',
+        f'Qualquer dúvida, é só responder este e-mail ou escrever para '
+        f'<a href="mailto:{EMAIL_CONTATO}" style="color:#32a041">{EMAIL_CONTATO}</a>.',
+    ])
+    return _enviar_email(email, "presente.edu — acesso aprovado", texto, html_corpo)
+
+
+def notificar_acesso_recusado(email, nome):
+    n = html.escape(nome or "")
+    saudacao = f"Olá, {nome}." if nome else "Olá."
+    texto = (
+        f"{saudacao}\n\n"
+        "Sua solicitação de acesso ao presente.edu não foi aprovada.\n\n"
+        "Se você acha que houve um engano, ou quer enviar outro comprovante de que coordena o "
+        f"curso, entre em contato comigo pelo e-mail {EMAIL_CONTATO} (ou simplesmente responda "
+        "esta mensagem)."
+        + _assinatura_texto()
+    )
+    html_corpo = _html_email([
+        f"Olá, {n}." if nome else "Olá.",
+        "Sua solicitação de acesso ao <strong>presente.edu</strong> não foi aprovada.",
+        "Se você acha que houve um engano, ou quer enviar outro comprovante de que coordena o curso, "
+        f'entre em contato comigo pelo e-mail <a href="mailto:{EMAIL_CONTATO}" style="color:#32a041">'
+        f"{EMAIL_CONTATO}</a> (ou simplesmente responda esta mensagem).",
+    ])
+    return _enviar_email(email, "presente.edu — solicitação de acesso não aprovada", texto, html_corpo)
 
 
 @app.route("/auth/status", methods=["GET", "OPTIONS"])
@@ -193,7 +340,8 @@ def auth_solicitar():
         "status": "pendente",
         "criado_em": fb_firestore.SERVER_TIMESTAMP,
     })
-    return jsonify({"status": "pendente", "email": email})
+    enviado = notificar_solicitacao_recebida(email, nome, curso)
+    return jsonify({"status": "pendente", "email": email, "email_enviado": enviado})
 
 
 @app.route("/admin/pendentes", methods=["GET", "OPTIONS"])
@@ -253,10 +401,12 @@ def admin_decidir():
             "aprovado_em": fb_firestore.SERVER_TIMESTAMP,
         })
         sol_ref.update({"status": "aprovado"})
+        enviado = notificar_acesso_aprovado(email, dados_sol.get("nome", ""))
     else:
         sol_ref.update({"status": "rejeitado"})
+        enviado = notificar_acesso_recusado(email, dados_sol.get("nome", ""))
 
-    return jsonify({"status": "ok", "email": email, "decisao": decisao})
+    return jsonify({"status": "ok", "email": email, "decisao": decisao, "email_enviado": enviado})
 
 
 # =========================================================
