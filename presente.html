@@ -828,7 +828,8 @@
                     redirecionarComProtecao('auth.html');
                     return;
                 }
-                document.getElementById('usuario-logado').textContent = status.email;
+                document.getElementById('usuario-logado').textContent = status.email +
+                    (status.vigencia_fim ? ` · acesso até ${formatarDataBR(status.vigencia_fim)}` : '');
                 if (status.admin) {
                     document.getElementById('link-admin').classList.remove('hidden');
                 }

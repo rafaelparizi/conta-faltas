@@ -2,6 +2,7 @@ import os
 import re
 import ssl
 import html
+import base64
 import json
 import smtplib
 import functools
@@ -9,7 +10,7 @@ import unicodedata
 import tempfile
 from email.message import EmailMessage
 from email.utils import formataddr
-from datetime import datetime
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
 from dataclasses import dataclass, field
 from typing import Optional
@@ -51,9 +52,10 @@ app.json = _JSONProviderSP(app)
 # Firebase Admin SDK) e decide se o e-mail pode usar a API:
 #   - e-mail em ADMIN_EMAILS → sempre aprovado (bootstrap, não depende do
 #     Firestore existir/ter dado);
-#   - senão, consulta o Firestore (coleção "coordenadores", doc = e-mail);
-#     status "aprovado" libera, qualquer outro caso (não existe / pendente /
-#     rejeitado) bloqueia.
+#   - senão, consulta o Firestore (coleção "coordenadores", doc = e-mail):
+#     libera só status "aprovado" DENTRO da vigência da portaria confirmada
+#     pelo admin; pendente / recusado / revogado / vigência vencida
+#     bloqueiam (ver _situacao_acesso).
 #
 # Todo acesso ao Firestore (leitura E escrita) passa por aqui, usando o
 # Admin SDK — o frontend nunca fala com o Firestore diretamente, só com o
@@ -116,43 +118,103 @@ def _verificar_login():
     return email
 
 
-def _status_coordenador(email):
-    """'aprovado' / 'pendente' / 'rejeitado' / None (nunca solicitou)."""
-    if email in ADMIN_EMAILS:
-        return "aprovado"
-    if _db is None:
+def _parse_data(valor):
+    """'AAAA-MM-DD' → date, ou None se vazio/inválido."""
+    s = str(valor or "").strip()
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", s):
         return None
-    doc = _db.collection("coordenadores").document(email).get()
-    if doc.exists:
-        return (doc.to_dict() or {}).get("status", "aprovado")
-    # Sem registro de coordenador: vale o status da solicitação (se houver),
-    # senão quem já pediu acesso veria o formulário de novo em vez de
-    # "em análise" / "não aprovado".
-    sol = _db.collection("solicitacoes").document(email).get()
-    if sol.exists:
-        status_sol = (sol.to_dict() or {}).get("status")
-        if status_sol in ("pendente", "rejeitado"):
-            return status_sol
-    return None
+    try:
+        return date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def _fmt_data_br(valor):
+    d = _parse_data(valor)
+    return d.strftime("%d/%m/%Y") if d else ""
+
+
+def _hoje_sp():
+    return datetime.now(FUSO_SP).date()
+
+
+def _validar_periodo(inicio_raw, fim_raw, rotulo):
+    """Devolve (inicio, fim) como date, ou levanta ValueError com mensagem."""
+    inicio, fim = _parse_data(inicio_raw), _parse_data(fim_raw)
+    if not inicio or not fim:
+        raise ValueError(f"Informe as datas de início e término da {rotulo} (formato AAAA-MM-DD).")
+    if fim <= inicio:
+        raise ValueError(f"A data de término da {rotulo} deve ser posterior à de início.")
+    return inicio, fim
+
+
+def _situacao_acesso(email):
+    """Situação de acesso do e-mail: dict com 'status' e, conforme o caso,
+    'vigencia_fim' e 'motivo'. Status: aprovado / pendente / revogado /
+    expirado / rejeitado / None (nunca pediu).
+
+    Ordem: aprovado dentro da vigência > pedido pendente (inclui quem foi
+    revogado ou venceu e já mandou portaria nova) > revogado > vigência
+    vencida > recusado. A vigência vale até o fim do dia de término, no
+    horário de São Paulo; depois disso o acesso é bloqueado sozinho."""
+    if email in ADMIN_EMAILS:
+        return {"status": "aprovado"}
+    if _db is None:
+        return {"status": None}
+
+    snap = _db.collection("coordenadores").document(email).get()
+    coord = (snap.to_dict() or {}) if snap.exists else None
+    aprovado = coord is not None and coord.get("status", "aprovado") == "aprovado"
+    if aprovado:
+        fim = _parse_data(coord.get("vigencia_fim"))
+        if fim is None or _hoje_sp() <= fim:
+            return {"status": "aprovado", "vigencia_fim": coord.get("vigencia_fim")}
+
+    snap_sol = _db.collection("solicitacoes").document(email).get()
+    sol = (snap_sol.to_dict() or {}) if snap_sol.exists else None
+    if sol and sol.get("status") == "pendente":
+        return {"status": "pendente"}
+    if coord and coord.get("status") == "revogado":
+        return {"status": "revogado", "motivo": coord.get("motivo_revogacao", "")}
+    if aprovado:  # chegou aqui = vigência vencida
+        return {"status": "expirado", "vigencia_fim": coord.get("vigencia_fim")}
+    if sol and sol.get("status") == "rejeitado":
+        return {"status": "rejeitado"}
+    return {"status": None}
+
+
+def _status_coordenador(email):
+    return _situacao_acesso(email)["status"]
+
+
+def _mensagem_bloqueio(sit):
+    status = sit["status"]
+    if status == "pendente":
+        return "Seu acesso ainda está pendente de aprovação."
+    if status == "rejeitado":
+        return "Seu pedido de acesso foi recusado."
+    if status == "revogado":
+        motivo = sit.get("motivo") or "não informado"
+        return f"Seu acesso foi revogado. Motivo: {motivo}"
+    if status == "expirado":
+        return (f"A vigência da sua portaria terminou em {_fmt_data_br(sit.get('vigencia_fim'))}. "
+                "Envie a nova portaria para renovar o acesso.")
+    return "Você ainda não solicitou acesso como coordenador."
 
 
 def exige_aprovado(view):
-    """Decorator: exige token Firebase válido + coordenador aprovado.
-    Deixa passar OPTIONS (preflight de CORS) sem checar nada."""
+    """Decorator: exige token Firebase válido + coordenador aprovado e dentro
+    da vigência. Deixa passar OPTIONS (preflight de CORS) sem checar nada."""
     @functools.wraps(view)
     def wrapper(*args, **kwargs):
         if request.method == "OPTIONS":
             return "", 200
         try:
             email = _verificar_login()
-            status = _status_coordenador(email)
-            if status != "aprovado":
-                msg = ("Seu acesso ainda está pendente de aprovação."
-                       if status == "pendente" else
-                       "Seu pedido de acesso foi recusado."
-                       if status == "rejeitado" else
-                       "Você ainda não solicitou acesso como coordenador.")
-                return jsonify({"erro": msg, "status_acesso": status or "sem_solicitacao"}), 403
+            sit = _situacao_acesso(email)
+            if sit["status"] != "aprovado":
+                return jsonify({"erro": _mensagem_bloqueio(sit),
+                                "status_acesso": sit["status"] or "sem_solicitacao"}), 403
         except ErroAuth as e:
             return jsonify({"erro": e.mensagem}), e.status
         request.email_usuario = email
@@ -177,7 +239,7 @@ def exige_admin(view):
 
 
 # =========================================================
-# NOTIFICAÇÕES POR E-MAIL (para quem pediu acesso)
+# NOTIFICAÇÕES POR E-MAIL
 # =========================================================
 #
 # Enviadas por SMTP com a conta do admin (SMTP_USER / SMTP_PASSWORD — no
@@ -188,10 +250,23 @@ def exige_admin(view):
 
 EMAIL_CONTATO = "rafael.parizi@iffarroupilha.edu.br"
 LINK_ACESSO = os.environ.get("APP_URL", "https://rafaelparizi.github.io/conta-faltas/auth.html")
+LINK_ADMIN = os.environ.get("ADMIN_URL", LINK_ACESSO.rsplit("/", 1)[0] + "/admin.html")
 
 
-def _enviar_email(para, assunto, texto, html_corpo):
-    """Devolve (enviado: bool, motivo_da_falha: str | None)."""
+def _decodificar_data_url(data_url):
+    """'data:<mime>;base64,<dados>' → (bytes, mime), ou None se inválido."""
+    m = re.match(r"data:([^;,]*)(;base64)?,(.*)$", data_url or "", re.S)
+    if not m or not m.group(2):
+        return None
+    try:
+        return base64.b64decode(m.group(3)), (m.group(1) or "application/octet-stream")
+    except Exception:
+        return None
+
+
+def _enviar_email(para, assunto, texto, html_corpo, reply_to=None, anexos=None):
+    """Devolve (enviado: bool, motivo_da_falha: str | None).
+    anexos: lista de (bytes, mime, nome_do_arquivo)."""
     usuario = os.environ.get("SMTP_USER", "").strip()
     if not usuario:
         print(f"E-mail não enviado para {para} (SMTP_USER não configurado): {assunto}")
@@ -204,9 +279,12 @@ def _enviar_email(para, assunto, texto, html_corpo):
     msg["Subject"] = assunto
     msg["From"] = formataddr(("Rafael Parizi · presente.edu", usuario))
     msg["To"] = para
-    msg["Reply-To"] = EMAIL_CONTATO
+    msg["Reply-To"] = reply_to or EMAIL_CONTATO
     msg.set_content(texto)
     msg.add_alternative(html_corpo, subtype="html")
+    for dados, mime, nome in anexos or []:
+        principal, _, sub = (mime or "application/octet-stream").partition("/")
+        msg.add_attachment(dados, maintype=principal, subtype=sub or "octet-stream", filename=nome)
 
     try:
         if porta == 465:
@@ -243,12 +321,21 @@ def _assinatura_texto():
     return f"\n\nRafael Parizi\npresente.edu · {EMAIL_CONTATO}\n"
 
 
-def notificar_solicitacao_recebida(email, nome, curso):
+def _link(url):
+    return f'<a href="{url}" style="color:#32a041">{url}</a>'
+
+
+_CONTATO_HTML = f'<a href="mailto:{EMAIL_CONTATO}" style="color:#32a041">{EMAIL_CONTATO}</a>'
+
+
+def notificar_solicitacao_recebida(email, nome, curso, inicio, fim):
     n, c = html.escape(nome), html.escape(curso)
+    periodo = f"{_fmt_data_br(inicio)} a {_fmt_data_br(fim)}"
     texto = (
         f"Olá, {nome}.\n\n"
-        f"Recebi sua solicitação de acesso ao presente.edu como coordenador(a) do curso {curso}. "
-        "Ela está em análise, e você vai receber outro e-mail assim que ela for avaliada.\n\n"
+        f"Recebi sua solicitação de acesso ao presente.edu como coordenador(a) do curso {curso}, "
+        f"com portaria de vigência de {periodo}. Ela está em análise, e você vai receber outro "
+        "e-mail assim que ela for avaliada.\n\n"
         "Enquanto isso, se entrar no sistema, vai ver o aviso \"Solicitação em análise\".\n\n"
         f"Se tiver alguma dúvida, é só responder este e-mail ou escrever para {EMAIL_CONTATO}."
         + _assinatura_texto()
@@ -256,18 +343,55 @@ def notificar_solicitacao_recebida(email, nome, curso):
     html_corpo = _html_email([
         f"Olá, {n}.",
         f"Recebi sua solicitação de acesso ao <strong>presente.edu</strong> como coordenador(a) do "
-        f"curso <strong>{c}</strong>. Ela está <strong>em análise</strong>, e você vai receber outro "
-        "e-mail assim que ela for avaliada.",
+        f"curso <strong>{c}</strong>, com portaria de vigência de <strong>{periodo}</strong>. "
+        "Ela está <strong>em análise</strong>, e você vai receber outro e-mail assim que ela for avaliada.",
         "Enquanto isso, se entrar no sistema, vai ver o aviso “Solicitação em análise”.",
-        f'Se tiver alguma dúvida, é só responder este e-mail ou escrever para '
-        f'<a href="mailto:{EMAIL_CONTATO}" style="color:#32a041">{EMAIL_CONTATO}</a>.',
+        f"Se tiver alguma dúvida, é só responder este e-mail ou escrever para {_CONTATO_HTML}.",
     ])
     return _enviar_email(email, "presente.edu — solicitação de acesso recebida", texto, html_corpo)
 
 
-def notificar_acesso_aprovado(email, nome):
+def notificar_admin_nova_solicitacao(email, nome, curso, inicio, fim, comprovante, comprovante_nome):
+    """Avisa os admins de um pedido novo, com a portaria anexada. Reply-To é
+    quem pediu, para responder direto. Devolve o resultado do último envio."""
+    periodo = f"{_fmt_data_br(inicio)} a {_fmt_data_br(fim)}"
+    anexos = []
+    decodificado = _decodificar_data_url(comprovante)
+    if decodificado:
+        dados, mime = decodificado
+        extensao = {"application/pdf": ".pdf", "image/png": ".png", "image/jpeg": ".jpg"}.get(mime, "")
+        anexos.append((dados, mime, comprovante_nome or f"portaria{extensao}"))
+    aviso_anexo = ("A portaria está anexada a este e-mail." if anexos
+                   else "Não foi possível anexar a portaria — veja no painel.")
+    texto = (
+        "Novo pedido de acesso ao presente.edu:\n\n"
+        f"Nome: {nome}\nE-mail: {email}\nCurso: {curso}\n"
+        f"Vigência da portaria (informada): {periodo}\n\n"
+        f"{aviso_anexo}\n\n"
+        f"Para aprovar ou recusar (e confirmar as datas): {LINK_ADMIN}\n"
+        "Responder este e-mail responde direto para quem pediu."
+    )
+    html_corpo = _html_email([
+        "Novo pedido de acesso ao <strong>presente.edu</strong>:",
+        f"<strong>Nome:</strong> {html.escape(nome)}<br>"
+        f"<strong>E-mail:</strong> {html.escape(email)}<br>"
+        f"<strong>Curso:</strong> {html.escape(curso)}<br>"
+        f"<strong>Vigência da portaria (informada):</strong> {periodo}",
+        aviso_anexo,
+        f"Para aprovar ou recusar (e confirmar as datas): {_link(LINK_ADMIN)}",
+        "Responder este e-mail responde direto para quem pediu.",
+    ])
+    resultado = (False, "nenhum admin configurado")
+    for admin in sorted(ADMIN_EMAILS):
+        resultado = _enviar_email(admin, f"presente.edu — novo pedido de acesso: {nome}",
+                                  texto, html_corpo, reply_to=email, anexos=anexos)
+    return resultado
+
+
+def notificar_acesso_aprovado(email, nome, vigencia_fim):
     n, e = html.escape(nome or ""), html.escape(email)
     saudacao = f"Olá, {nome}." if nome else "Olá."
+    ate = _fmt_data_br(vigencia_fim)
     texto = (
         f"{saudacao}\n\n"
         "Sua solicitação de acesso ao presente.edu foi aprovada. Para entrar:\n\n"
@@ -275,18 +399,21 @@ def notificar_acesso_aprovado(email, nome):
         f"2. Clique em \"Entrar com Google\" e use esta mesma conta ({email}).\n"
         "3. Você vai direto para a ferramenta. Na barra lateral, envie os diários de classe "
         "(PDF exportado do SIGAA) e clique em \"Processar relatório\".\n\n"
+        f"Seu acesso vale até {ate}, fim da vigência da sua portaria. Depois disso, é só entrar "
+        "e enviar a nova portaria para renovar.\n\n"
         f"Qualquer dúvida, é só responder este e-mail ou escrever para {EMAIL_CONTATO}."
         + _assinatura_texto()
     )
     html_corpo = _html_email([
         f"Olá, {n}." if nome else "Olá.",
         "Sua solicitação de acesso ao <strong>presente.edu</strong> foi <strong>aprovada</strong>. Para entrar:",
-        f'1. Acesse <a href="{LINK_ACESSO}" style="color:#32a041">{LINK_ACESSO}</a><br>'
+        f'1. Acesse {_link(LINK_ACESSO)}<br>'
         f'2. Clique em <strong>“Entrar com Google”</strong> e use esta mesma conta ({e}).<br>'
         '3. Você vai direto para a ferramenta. Na barra lateral, envie os diários de classe '
         '(PDF exportado do SIGAA) e clique em <strong>“Processar relatório”</strong>.',
-        f'Qualquer dúvida, é só responder este e-mail ou escrever para '
-        f'<a href="mailto:{EMAIL_CONTATO}" style="color:#32a041">{EMAIL_CONTATO}</a>.',
+        f"Seu acesso vale até <strong>{ate}</strong>, fim da vigência da sua portaria. Depois disso, "
+        "é só entrar e enviar a nova portaria para renovar.",
+        f"Qualquer dúvida, é só responder este e-mail ou escrever para {_CONTATO_HTML}.",
     ])
     return _enviar_email(email, "presente.edu — acesso aprovado", texto, html_corpo)
 
@@ -297,19 +424,51 @@ def notificar_acesso_recusado(email, nome):
     texto = (
         f"{saudacao}\n\n"
         "Sua solicitação de acesso ao presente.edu não foi aprovada.\n\n"
-        "Se você acha que houve um engano, ou quer enviar outro comprovante de que coordena o "
-        f"curso, entre em contato comigo pelo e-mail {EMAIL_CONTATO} (ou simplesmente responda "
-        "esta mensagem)."
+        "Se você acha que houve um engano, ou quer enviar outra portaria de designação como "
+        f"coordenador(a), entre em contato comigo pelo e-mail {EMAIL_CONTATO} (ou simplesmente "
+        "responda esta mensagem)."
         + _assinatura_texto()
     )
     html_corpo = _html_email([
         f"Olá, {n}." if nome else "Olá.",
         "Sua solicitação de acesso ao <strong>presente.edu</strong> não foi aprovada.",
-        "Se você acha que houve um engano, ou quer enviar outro comprovante de que coordena o curso, "
-        f'entre em contato comigo pelo e-mail <a href="mailto:{EMAIL_CONTATO}" style="color:#32a041">'
-        f"{EMAIL_CONTATO}</a> (ou simplesmente responda esta mensagem).",
+        "Se você acha que houve um engano, ou quer enviar outra portaria de designação como "
+        f"coordenador(a), entre em contato comigo pelo e-mail {_CONTATO_HTML} "
+        "(ou simplesmente responda esta mensagem).",
     ])
     return _enviar_email(email, "presente.edu — solicitação de acesso não aprovada", texto, html_corpo)
+
+
+def notificar_acesso_revogado(email, nome, motivo):
+    n, m = html.escape(nome or ""), html.escape(motivo)
+    saudacao = f"Olá, {nome}." if nome else "Olá."
+    texto = (
+        f"{saudacao}\n\n"
+        "Seu acesso ao presente.edu foi revogado.\n\n"
+        f"Motivo: {motivo}\n\n"
+        f"Se você tem uma nova portaria de designação como coordenador(a), entre em {LINK_ACESSO} "
+        "com sua conta Google e envie a portaria pelo formulário para pedir o acesso de novo.\n\n"
+        f"Se tiver dúvidas, entre em contato comigo pelo e-mail {EMAIL_CONTATO} (ou simplesmente "
+        "responda esta mensagem)."
+        + _assinatura_texto()
+    )
+    html_corpo = _html_email([
+        f"Olá, {n}." if nome else "Olá.",
+        "Seu acesso ao <strong>presente.edu</strong> foi <strong>revogado</strong>.",
+        f"<strong>Motivo:</strong> {m}",
+        f"Se você tem uma nova portaria de designação como coordenador(a), entre em {_link(LINK_ACESSO)} "
+        "com sua conta Google e envie a portaria pelo formulário para pedir o acesso de novo.",
+        f"Se tiver dúvidas, entre em contato comigo pelo e-mail {_CONTATO_HTML} "
+        "(ou simplesmente responda esta mensagem).",
+    ])
+    return _enviar_email(email, "presente.edu — acesso revogado", texto, html_corpo)
+
+
+# =========================================================
+# ROTAS DE ACESSO
+# =========================================================
+
+_ERRO_SEM_FIRESTORE = "Cadastro de acesso ainda não está configurado nesta API."
 
 
 @app.route("/auth/status", methods=["GET", "OPTIONS"])
@@ -321,12 +480,15 @@ def auth_status():
     except ErroAuth as e:
         return jsonify({"erro": e.mensagem}), e.status
 
-    status = _status_coordenador(email)
-    if status == "aprovado":
-        return jsonify({"status": "aprovado", "email": email, "admin": email in ADMIN_EMAILS})
-    if status in ("pendente", "rejeitado"):
-        return jsonify({"status": status, "email": email})
-    return jsonify({"status": "novo", "email": email})
+    sit = _situacao_acesso(email)
+    resposta = {"status": sit["status"] or "novo", "email": email}
+    if sit["status"] == "aprovado":
+        resposta["admin"] = email in ADMIN_EMAILS
+    if sit.get("vigencia_fim"):
+        resposta["vigencia_fim"] = sit["vigencia_fim"]
+    if sit["status"] == "revogado":
+        resposta["motivo"] = sit.get("motivo", "")
+    return jsonify(resposta)
 
 
 @app.route("/auth/solicitar", methods=["POST", "OPTIONS"])
@@ -338,7 +500,7 @@ def auth_solicitar():
     except ErroAuth as e:
         return jsonify({"erro": e.mensagem}), e.status
     if _db is None:
-        return jsonify({"erro": "Cadastro de acesso ainda não está configurado nesta API."}), 500
+        return jsonify({"erro": _ERRO_SEM_FIRESTORE}), 500
 
     if _status_coordenador(email) == "aprovado":
         return jsonify({"status": "aprovado", "email": email})
@@ -348,21 +510,30 @@ def auth_solicitar():
     curso = (dados.get("curso") or "").strip()
     comprovante_base64 = dados.get("comprovante_base64") or ""
     if not nome or not curso or not comprovante_base64:
-        return jsonify({"erro": "Preencha nome, curso e anexe o comprovante."}), 400
+        return jsonify({"erro": "Preencha nome, curso e anexe a portaria."}), 400
+    try:
+        inicio, fim = _validar_periodo(dados.get("portaria_inicio"), dados.get("portaria_fim"), "portaria")
+    except ValueError as e:
+        return jsonify({"erro": str(e)}), 400
     # ~700KB de arquivo vira ~950KB em base64 — folga do limite de 1MiB/doc do Firestore.
     if len(comprovante_base64) > 1_000_000:
-        return jsonify({"erro": "Comprovante muito grande (máx. ~700KB). Reduza o arquivo e tente novamente."}), 400
+        return jsonify({"erro": "Portaria muito grande (máx. ~700KB). Reduza o arquivo e tente novamente."}), 400
 
+    comprovante_nome = (dados.get("comprovante_nome") or "")[:200]
     _db.collection("solicitacoes").document(email).set({
         "email": email,
         "nome": nome,
         "curso": curso,
+        "portaria_inicio": inicio.isoformat(),
+        "portaria_fim": fim.isoformat(),
         "comprovante_base64": comprovante_base64,
-        "comprovante_nome": (dados.get("comprovante_nome") or "")[:200],
+        "comprovante_nome": comprovante_nome,
         "status": "pendente",
         "criado_em": fb_firestore.SERVER_TIMESTAMP,
     })
-    enviado, _ = notificar_solicitacao_recebida(email, nome, curso)
+    enviado, _ = notificar_solicitacao_recebida(email, nome, curso, inicio.isoformat(), fim.isoformat())
+    notificar_admin_nova_solicitacao(email, nome, curso, inicio.isoformat(), fim.isoformat(),
+                                     comprovante_base64, comprovante_nome)
     return jsonify({"status": "pendente", "email": email, "email_enviado": enviado})
 
 
@@ -370,13 +541,12 @@ def auth_solicitar():
 @exige_admin
 def admin_pendentes():
     if _db is None:
-        return jsonify({"erro": "Cadastro de acesso ainda não está configurado nesta API."}), 500
+        return jsonify({"erro": _ERRO_SEM_FIRESTORE}), 500
     docs = _db.collection("solicitacoes").where("status", "==", "pendente").stream()
     solicitacoes = []
     for d in docs:
         item = d.to_dict() or {}
-        item.pop("comprovante_base64", None)  # não manda o base64 inteiro na listagem
-        item["tem_comprovante"] = bool((d.to_dict() or {}).get("comprovante_base64"))
+        item["tem_comprovante"] = bool(item.pop("comprovante_base64", None))  # não manda o base64 na listagem
         solicitacoes.append(item)
     return jsonify({"solicitacoes": solicitacoes})
 
@@ -385,7 +555,7 @@ def admin_pendentes():
 @exige_admin
 def admin_comprovante(email):
     if _db is None:
-        return jsonify({"erro": "Cadastro de acesso ainda não está configurado nesta API."}), 500
+        return jsonify({"erro": _ERRO_SEM_FIRESTORE}), 500
     doc = _db.collection("solicitacoes").document(email.lower().strip()).get()
     if not doc.exists:
         return jsonify({"erro": "Solicitação não encontrada."}), 404
@@ -400,7 +570,7 @@ def admin_comprovante(email):
 @exige_admin
 def admin_decidir():
     if _db is None:
-        return jsonify({"erro": "Cadastro de acesso ainda não está configurado nesta API."}), 500
+        return jsonify({"erro": _ERRO_SEM_FIRESTORE}), 500
     dados = request.get_json(silent=True) or {}
     email = (dados.get("email") or "").lower().strip()
     decisao = dados.get("decisao")
@@ -414,22 +584,80 @@ def admin_decidir():
     dados_sol = sol.to_dict() or {}
 
     if decisao == "aprovar":
+        # Datas CONFIRMADAS pelo admin (pode ter ajustado as informadas).
+        try:
+            inicio, fim = _validar_periodo(dados.get("vigencia_inicio"), dados.get("vigencia_fim"), "vigência")
+        except ValueError as e:
+            return jsonify({"erro": str(e)}), 400
         _db.collection("coordenadores").document(email).set({
             "email": email,
             "nome": dados_sol.get("nome", ""),
             "curso": dados_sol.get("curso", ""),
             "status": "aprovado",
+            "vigencia_inicio": inicio.isoformat(),
+            "vigencia_fim": fim.isoformat(),
             "aprovado_por": request.email_usuario,
             "aprovado_em": fb_firestore.SERVER_TIMESTAMP,
         })
         sol_ref.update({"status": "aprovado"})
-        enviado, erro_email = notificar_acesso_aprovado(email, dados_sol.get("nome", ""))
+        enviado, erro_email = notificar_acesso_aprovado(email, dados_sol.get("nome", ""), fim.isoformat())
     else:
         sol_ref.update({"status": "rejeitado"})
         enviado, erro_email = notificar_acesso_recusado(email, dados_sol.get("nome", ""))
 
     return jsonify({"status": "ok", "email": email, "decisao": decisao,
                     "email_enviado": enviado, "email_erro": erro_email})
+
+
+@app.route("/admin/coordenadores", methods=["GET", "OPTIONS"])
+@exige_admin
+def admin_coordenadores():
+    """Coordenadores com status aprovado, com a situação da vigência:
+    vigente / vence_em_breve (≤ 30 dias) / vencida."""
+    if _db is None:
+        return jsonify({"erro": _ERRO_SEM_FIRESTORE}), 500
+    hoje = _hoje_sp()
+    lista = []
+    for d in _db.collection("coordenadores").where("status", "==", "aprovado").stream():
+        c = d.to_dict() or {}
+        fim = _parse_data(c.get("vigencia_fim"))
+        dias = (fim - hoje).days if fim else None
+        situacao = ("vigente" if dias is None or dias > 30
+                    else "vence_em_breve" if dias >= 0
+                    else "vencida")
+        lista.append({
+            "email": c.get("email", d.id), "nome": c.get("nome", ""), "curso": c.get("curso", ""),
+            "vigencia_inicio": c.get("vigencia_inicio"), "vigencia_fim": c.get("vigencia_fim"),
+            "dias_restantes": dias, "situacao": situacao,
+        })
+    lista.sort(key=lambda c: (c["vigencia_fim"] is None, c["vigencia_fim"] or "", c["nome"]))
+    return jsonify({"coordenadores": lista})
+
+
+@app.route("/admin/revogar", methods=["POST", "OPTIONS"])
+@exige_admin
+def admin_revogar():
+    if _db is None:
+        return jsonify({"erro": _ERRO_SEM_FIRESTORE}), 500
+    dados = request.get_json(silent=True) or {}
+    email = (dados.get("email") or "").lower().strip()
+    motivo = (dados.get("motivo") or "").strip()[:500]
+    if not email or not motivo:
+        return jsonify({"erro": "Informe o e-mail e o motivo da revogação."}), 400
+
+    ref = _db.collection("coordenadores").document(email)
+    snap = ref.get()
+    if not snap.exists or (snap.to_dict() or {}).get("status") != "aprovado":
+        return jsonify({"erro": "Coordenador com acesso ativo não encontrado."}), 404
+
+    ref.update({
+        "status": "revogado",
+        "motivo_revogacao": motivo,
+        "revogado_por": request.email_usuario,
+        "revogado_em": fb_firestore.SERVER_TIMESTAMP,
+    })
+    enviado, erro_email = notificar_acesso_revogado(email, (snap.to_dict() or {}).get("nome", ""), motivo)
+    return jsonify({"status": "ok", "email": email, "email_enviado": enviado, "email_erro": erro_email})
 
 
 # =========================================================

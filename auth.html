@@ -120,12 +120,47 @@
                 <button onclick="sairDaConta()" class="text-sm text-iffar hover:underline">Sair</button>
             </div>
 
+            <!-- Estado: acesso revogado -->
+            <div id="bloco-revogado" class="hidden">
+                <div class="text-4xl mb-3">🔒</div>
+                <h1 class="text-xl font-extrabold text-gray-900 mb-2">Acesso revogado</h1>
+                <p class="text-sm text-gray-600 mb-3">Seu acesso ao presente.edu foi revogado.</p>
+                <p class="text-sm text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 mb-4 text-left">
+                    <strong>Motivo:</strong> <span id="revogado-motivo"></span>
+                </p>
+                <p class="text-sm text-gray-600 mb-6">
+                    Se você tem uma nova portaria de designação, envie para pedir o acesso de novo.
+                    Dúvidas: <a href="mailto:rafael.parizi@iffarroupilha.edu.br"
+                        class="text-iffar hover:underline">rafael.parizi@iffarroupilha.edu.br</a>.
+                </p>
+                <button onclick="mostrarBloco('solicitar')"
+                    class="w-full bg-iffar hover:brightness-95 text-white font-semibold py-2.5 rounded-lg transition mb-3">
+                    Enviar nova portaria
+                </button>
+                <button onclick="sairDaConta()" class="text-sm text-gray-500 hover:underline">Sair</button>
+            </div>
+
+            <!-- Estado: vigência da portaria vencida -->
+            <div id="bloco-expirado" class="hidden">
+                <div class="text-4xl mb-3">📅</div>
+                <h1 class="text-xl font-extrabold text-gray-900 mb-2">Portaria vencida</h1>
+                <p class="text-sm text-gray-600 mb-6">
+                    A vigência da sua portaria terminou em <strong id="expirado-data"></strong>.
+                    Para continuar usando a ferramenta, envie a nova portaria.
+                </p>
+                <button onclick="mostrarBloco('solicitar')"
+                    class="w-full bg-iffar hover:brightness-95 text-white font-semibold py-2.5 rounded-lg transition mb-3">
+                    Enviar nova portaria
+                </button>
+                <button onclick="sairDaConta()" class="text-sm text-gray-500 hover:underline">Sair</button>
+            </div>
+
             <!-- Estado: novo (precisa solicitar acesso) -->
             <div id="bloco-solicitar" class="hidden text-left">
                 <h1 class="text-xl font-extrabold text-gray-900 mb-1 text-center">Solicitar acesso</h1>
                 <p class="text-sm text-gray-600 mb-6 text-center">
                     Logado como <strong id="solicitar-email"></strong>. Para usar a ferramenta como
-                    coordenador de curso, envie um comprovante (portaria, e-mail institucional, etc.).
+                    coordenador(a) de curso, envie a sua portaria de designação e informe a vigência.
                 </p>
 
                 <label class="block text-xs font-semibold text-gray-600 mb-1">Nome completo</label>
@@ -136,11 +171,27 @@
                 <input id="solicitar-curso" type="text" placeholder="Ex.: Bacharelado em Sistemas de Informação"
                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4" />
 
-                <label class="block text-xs font-semibold text-gray-600 mb-1">Comprovante (PDF ou imagem, até
-                    700KB)</label>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Portaria de designação como
+                    coordenador(a) — PDF ou imagem, até 700KB</label>
                 <input id="solicitar-arquivo" type="file" accept=".pdf,image/*"
                     class="w-full text-sm mb-1" />
                 <p id="solicitar-arquivo-info" class="text-xs text-gray-400 mb-4"></p>
+
+                <div class="grid grid-cols-2 gap-3 mb-1">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Início da vigência</label>
+                        <input id="solicitar-inicio" type="date"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Término previsto</label>
+                        <input id="solicitar-fim" type="date"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 mb-4">
+                    O término é sugerido para 24 meses após o início — ajuste se a sua portaria for diferente.
+                </p>
 
                 <p id="erro-solicitar" class="hidden text-sm text-red-600 mb-4"></p>
 
@@ -160,7 +211,7 @@
     </div>
 
     <script>
-        const blocos = ['login', 'pendente', 'rejeitado', 'solicitar'];
+        const blocos = ['login', 'pendente', 'rejeitado', 'revogado', 'expirado', 'solicitar'];
         function mostrarBloco(nome) {
             blocos.forEach(b => document.getElementById('bloco-' + b).classList.toggle('hidden', b !== nome));
         }
@@ -179,14 +230,21 @@
         }
 
         async function tratarStatus(status) {
+            // o formulário também é aberto a partir de "revogado"/"expirado"
+            document.getElementById('solicitar-email').textContent = status.email || '';
             if (status.status === 'aprovado') {
                 redirecionarComProtecao('presente.html');
             } else if (status.status === 'pendente') {
                 mostrarBloco('pendente');
             } else if (status.status === 'rejeitado') {
                 mostrarBloco('rejeitado');
+            } else if (status.status === 'revogado') {
+                document.getElementById('revogado-motivo').textContent = status.motivo || 'não informado';
+                mostrarBloco('revogado');
+            } else if (status.status === 'expirado') {
+                document.getElementById('expirado-data').textContent = formatarDataBR(status.vigencia_fim);
+                mostrarBloco('expirado');
             } else {
-                document.getElementById('solicitar-email').textContent = status.email;
                 mostrarBloco('solicitar');
             }
         }
@@ -244,15 +302,28 @@
                 : '';
         });
 
+        // Sugere o término (24 meses) ao escolher o início; continua editável.
+        document.getElementById('solicitar-inicio').addEventListener('change', function () {
+            const fim = fimPrevistoPortaria(this.value);
+            if (fim) document.getElementById('solicitar-fim').value = fim;
+        });
+
         async function enviarSolicitacao() {
             const nome = document.getElementById('solicitar-nome').value.trim();
             const curso = document.getElementById('solicitar-curso').value.trim();
             const arquivo = document.getElementById('solicitar-arquivo').files[0];
+            const portaria_inicio = document.getElementById('solicitar-inicio').value;
+            const portaria_fim = document.getElementById('solicitar-fim').value;
             const erroEl = document.getElementById('erro-solicitar');
             erroEl.classList.add('hidden');
 
-            if (!nome || !curso || !arquivo) {
-                erroEl.textContent = 'Preencha nome, curso e anexe o comprovante.';
+            if (!nome || !curso || !arquivo || !portaria_inicio || !portaria_fim) {
+                erroEl.textContent = 'Preencha nome, curso, as datas de vigência e anexe a portaria.';
+                erroEl.classList.remove('hidden');
+                return;
+            }
+            if (portaria_fim <= portaria_inicio) {
+                erroEl.textContent = 'O término da vigência deve ser depois do início.';
                 erroEl.classList.remove('hidden');
                 return;
             }
@@ -270,7 +341,10 @@
                 const res = await apiFetch(`${API_URL}/auth/solicitar`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nome, curso, comprovante_base64, comprovante_nome: arquivo.name }),
+                    body: JSON.stringify({
+                        nome, curso, comprovante_base64, comprovante_nome: arquivo.name,
+                        portaria_inicio, portaria_fim,
+                    }),
                 });
                 const json = await res.json();
                 if (!res.ok) throw new Error(json.erro || 'Erro ao enviar solicitação.');

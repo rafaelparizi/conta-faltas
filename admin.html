@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>presente.edu - Solicitações de acesso</title>
+    <title>presente.edu - Gestão de acessos</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -14,6 +14,10 @@
 
         .bg-iffar {
             background-color: #32a041;
+        }
+
+        .text-iffar {
+            color: #32a041;
         }
     </style>
 
@@ -31,11 +35,11 @@
 <body class="bg-gray-50 min-h-screen">
 
     <div class="max-w-3xl mx-auto px-6 py-10">
-        <div class="flex items-center justify-between mb-8">
+        <div class="flex items-center justify-between mb-8 gap-4 flex-wrap">
             <div>
-                <h1 class="text-2xl font-extrabold text-gray-900">Solicitações de acesso</h1>
-                <p class="text-sm text-gray-500">Aprove ou recuse pedidos de coordenadores para usar o
-                    presente.edu.</p>
+                <h1 class="text-2xl font-extrabold text-gray-900">Gestão de acessos</h1>
+                <p class="text-sm text-gray-500">Aprove pedidos, confirme a vigência das portarias e revogue
+                    acessos.</p>
             </div>
             <div class="flex items-center gap-4">
                 <a href="presente.html" class="text-sm text-iffar hover:underline">Voltar à ferramenta</a>
@@ -48,58 +52,88 @@
             <p class="text-sm text-gray-500">Esta página é só para administradores.</p>
         </div>
 
-        <div id="bloco-carregando" class="text-sm text-gray-400">Carregando solicitações...</div>
+        <div id="conteudo-admin">
+            <!-- Solicitações pendentes -->
+            <section class="mb-10">
+                <h2 class="text-sm font-bold uppercase tracking-wider text-gray-500 mb-3">
+                    Solicitações pendentes <span id="contagem-pendentes" class="text-gray-400"></span>
+                </h2>
+                <p id="carregando-pendentes" class="text-sm text-gray-400">Carregando...</p>
+                <div id="vazio-pendentes" class="hidden bg-white border border-gray-200 rounded-2xl p-6 text-center">
+                    <p class="text-sm text-gray-500">Nenhuma solicitação pendente no momento. 🎉</p>
+                </div>
+                <div id="lista-pendentes" class="space-y-4"></div>
+            </section>
 
-        <div id="bloco-vazio" class="hidden bg-white border border-gray-200 rounded-2xl p-8 text-center">
-            <p class="text-sm text-gray-500">Nenhuma solicitação pendente no momento. 🎉</p>
+            <!-- Coordenadores com acesso -->
+            <section>
+                <h2 class="text-sm font-bold uppercase tracking-wider text-gray-500 mb-3">
+                    Coordenadores com acesso <span id="contagem-coordenadores" class="text-gray-400"></span>
+                </h2>
+                <p id="carregando-coordenadores" class="text-sm text-gray-400">Carregando...</p>
+                <div id="vazio-coordenadores"
+                    class="hidden bg-white border border-gray-200 rounded-2xl p-6 text-center">
+                    <p class="text-sm text-gray-500">Nenhum coordenador com acesso ativo.</p>
+                </div>
+                <div id="lista-coordenadores" class="space-y-3"></div>
+            </section>
         </div>
-
-        <div id="lista-solicitacoes" class="space-y-4"></div>
     </div>
 
-    <!-- Modal do comprovante -->
-    <div id="modal-comprovante"
-        class="hidden fixed inset-0 z-[80] bg-black/60 items-center justify-center p-4"
-        onclick="if (event.target === this) fecharComprovante()">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-auto p-4">
-            <div class="flex justify-end mb-2">
-                <button onclick="fecharComprovante()" class="text-sm text-gray-500 hover:text-gray-800">Fechar
-                    ✕</button>
+    <!-- Modal da portaria -->
+    <div id="modal-portaria" class="hidden fixed inset-0 z-[80] bg-black/60 items-center justify-center p-4"
+        onclick="if (event.target === this) fecharPortaria()">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-auto p-4">
+            <div class="flex items-center justify-between gap-4 mb-3">
+                <div id="portaria-links" class="flex gap-4 text-sm"></div>
+                <button onclick="fecharPortaria()" class="text-sm text-gray-500 hover:text-gray-800">Fechar ✕</button>
             </div>
-            <div id="comprovante-conteudo" class="text-center text-sm text-gray-400 py-10">Carregando...</div>
+            <div id="portaria-conteudo" class="text-center text-sm text-gray-400 py-10">Carregando...</div>
+        </div>
+    </div>
+
+    <!-- Modal de revogação -->
+    <div id="modal-revogar" class="hidden fixed inset-0 z-[80] bg-black/60 items-center justify-center p-4"
+        onclick="if (event.target === this) fecharRevogar()">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 class="font-bold text-gray-900 mb-1">Revogar acesso</h3>
+            <p class="text-sm text-gray-500 mb-4">
+                <span id="revogar-nome" class="font-semibold text-gray-700"></span>
+                (<span id="revogar-email"></span>) perde o acesso na hora e recebe um e-mail com o motivo.
+            </p>
+
+            <p class="text-xs font-semibold text-gray-600 mb-2">Motivos prontos</p>
+            <div id="revogar-motivos-prontos" class="flex flex-wrap gap-2 mb-4"></div>
+
+            <label class="block text-xs font-semibold text-gray-600 mb-1" for="revogar-motivo">Motivo</label>
+            <textarea id="revogar-motivo" rows="3" maxlength="500"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2"
+                placeholder="Escreva ou escolha um motivo pronto acima"></textarea>
+            <p id="revogar-erro" class="hidden text-sm text-red-600 mb-2"></p>
+
+            <div class="flex gap-2 justify-end mt-2">
+                <button onclick="fecharRevogar()"
+                    class="text-sm text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg">Cancelar</button>
+                <button id="btn-confirmar-revogar" onclick="confirmarRevogar()"
+                    class="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition disabled:opacity-60">
+                    Revogar acesso
+                </button>
+            </div>
         </div>
     </div>
 
     <script>
-        function cardSolicitacao(s) {
-            const criado = formatarDataSP(s.criado_em);
-            return `
-            <div class="bg-white border border-gray-200 rounded-2xl p-6" id="card-${cssEsc(s.email)}">
-                <div class="flex items-start justify-between gap-4 flex-wrap">
-                    <div>
-                        <p class="font-bold text-gray-900">${escapeHtml(s.nome || '(sem nome)')}</p>
-                        <p class="text-sm text-gray-500">${escapeHtml(s.email)}</p>
-                        <p class="text-sm text-gray-700 mt-1"><strong>Curso:</strong> ${escapeHtml(s.curso || '—')}</p>
-                        ${criado ? `<p class="text-xs text-gray-400 mt-1">Solicitado em ${criado}</p>` : ''}
-                    </div>
-                    <div class="flex flex-col gap-2 items-end shrink-0">
-                        ${s.tem_comprovante
-                    ? `<button onclick="verComprovante('${cssEsc(s.email)}')" class="text-sm text-iffar hover:underline">Ver comprovante</button>`
-                    : `<span class="text-xs text-gray-400">Sem comprovante</span>`}
-                        <div class="flex gap-2">
-                            <button onclick="decidir('${cssEsc(s.email)}', 'aprovar', this)"
-                                class="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
-                                Aprovar
-                            </button>
-                            <button onclick="decidir('${cssEsc(s.email)}', 'rejeitar', this)"
-                                class="bg-red-100 hover:bg-red-200 text-red-700 text-sm font-semibold px-4 py-2 rounded-lg transition">
-                                Recusar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>`;
-        }
+        const MOTIVOS_PRONTOS = [
+            'Término de vigência da portaria',
+            'Substituição na coordenação do curso',
+            'A pedido do(a) coordenador(a)',
+        ];
+
+        // Estado da página: as listas vêm da API; os botões usam o índice.
+        let pendentes = [];
+        let coordenadores = [];
+        let revogandoIdx = null;
+        let urlPortaria = null;
 
         // A API devolve ISO 8601 com offset (ex.: "2026-09-26T11:40:25-03:00").
         // Formata sempre no fuso de São Paulo, qualquer que seja o fuso do navegador.
@@ -117,98 +151,317 @@
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
             }[c]));
         }
-        function cssEsc(s) { return String(s).replace(/'/g, "\\'"); }
 
-        async function carregarSolicitacoes() {
-            document.getElementById('bloco-carregando').classList.remove('hidden');
-            document.getElementById('bloco-vazio').classList.add('hidden');
-            try {
-                const res = await apiFetch(`${API_URL}/admin/pendentes`);
-                if (res.status === 403) {
-                    document.getElementById('bloco-negado').classList.remove('hidden');
-                    return;
-                }
-                const json = await res.json();
-                if (!res.ok) throw new Error(json.erro || 'Erro ao carregar solicitações.');
-
-                const lista = document.getElementById('lista-solicitacoes');
-                if (!json.solicitacoes.length) {
-                    document.getElementById('bloco-vazio').classList.remove('hidden');
-                    lista.innerHTML = '';
-                    return;
-                }
-                lista.innerHTML = json.solicitacoes.map(cardSolicitacao).join('');
-            } catch (e) {
-                document.getElementById('lista-solicitacoes').innerHTML =
-                    `<p class="text-sm text-red-600">${escapeHtml(e.message)}</p>`;
-            } finally {
-                document.getElementById('bloco-carregando').classList.add('hidden');
+        function avisarSeEmailFalhou(json, email) {
+            if (json.email_enviado === false) {
+                alert(`Registrado, mas o e-mail para ${email} não foi enviado.\n\n` +
+                    `Motivo: ${json.email_erro || 'desconhecido'}\n\nAvise a pessoa manualmente.`);
             }
         }
 
-        async function decidir(email, decisao, btn) {
-            const card = document.getElementById('card-' + cssEsc(email));
-            const botoes = card.querySelectorAll('button');
+        // ===================== Solicitações pendentes =====================
+
+        function cardPendente(s, i) {
+            const criado = formatarDataSP(s.criado_em);
+            const informado = s.portaria_inicio
+                ? `${formatarDataBR(s.portaria_inicio)} a ${formatarDataBR(s.portaria_fim)}`
+                : 'não informada';
+            return `
+            <div class="bg-white border border-gray-200 rounded-2xl p-6" id="card-pendente-${i}">
+                <div class="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                        <p class="font-bold text-gray-900">${escapeHtml(s.nome || '(sem nome)')}</p>
+                        <p class="text-sm text-gray-500">${escapeHtml(s.email)}</p>
+                        <p class="text-sm text-gray-700 mt-1"><strong>Curso:</strong> ${escapeHtml(s.curso || '—')}</p>
+                        <p class="text-sm text-gray-700"><strong>Vigência informada:</strong> ${informado}</p>
+                        ${criado ? `<p class="text-xs text-gray-400 mt-1">Solicitado em ${criado}</p>` : ''}
+                    </div>
+                    ${s.tem_comprovante
+                    ? `<button onclick="verPortaria(${i})" class="text-sm font-semibold text-iffar hover:underline">📄 Ver portaria</button>`
+                    : `<span class="text-xs text-gray-400">Sem portaria anexada</span>`}
+                </div>
+
+                <div class="mt-4 pt-4 border-t border-gray-100">
+                    <p class="text-xs font-semibold text-gray-600 mb-2">Confirme a vigência da portaria (vale como
+                        período de acesso)</p>
+                    <div class="flex items-end gap-3 flex-wrap">
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1" for="vig-ini-${i}">Início</label>
+                            <input id="vig-ini-${i}" type="date" value="${escapeHtml(s.portaria_inicio || '')}"
+                                class="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1" for="vig-fim-${i}">Término</label>
+                            <input id="vig-fim-${i}" type="date" value="${escapeHtml(s.portaria_fim || '')}"
+                                class="border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                        </div>
+                        <div class="flex gap-2 ml-auto">
+                            <button onclick="decidir(${i}, 'aprovar')"
+                                class="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition disabled:opacity-60">
+                                Aprovar
+                            </button>
+                            <button onclick="decidir(${i}, 'rejeitar')"
+                                class="bg-red-100 hover:bg-red-200 text-red-700 text-sm font-semibold px-4 py-2 rounded-lg transition disabled:opacity-60">
+                                Recusar
+                            </button>
+                        </div>
+                    </div>
+                    <p id="erro-pendente-${i}" class="hidden text-sm text-red-600 mt-2"></p>
+                </div>
+            </div>`;
+        }
+
+        function atualizarVazioPendentes() {
+            const restantes = document.querySelectorAll('[id^="card-pendente-"]').length;
+            document.getElementById('contagem-pendentes').textContent = restantes ? `(${restantes})` : '';
+            document.getElementById('vazio-pendentes').classList.toggle('hidden', restantes > 0);
+        }
+
+        async function carregarPendentes() {
+            const res = await apiFetch(`${API_URL}/admin/pendentes`);
+            if (res.status === 403) throw Object.assign(new Error('negado'), { negado: true });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.erro || 'Erro ao carregar solicitações.');
+            pendentes = json.solicitacoes;
+            document.getElementById('lista-pendentes').innerHTML = pendentes.map(cardPendente).join('');
+            document.getElementById('carregando-pendentes').classList.add('hidden');
+            atualizarVazioPendentes();
+        }
+
+        async function decidir(i, decisao) {
+            const s = pendentes[i];
+            const card = document.getElementById('card-pendente-' + i);
+            const erroEl = document.getElementById('erro-pendente-' + i);
+            erroEl.classList.add('hidden');
+
+            const corpo = { email: s.email, decisao };
+            if (decisao === 'aprovar') {
+                corpo.vigencia_inicio = document.getElementById('vig-ini-' + i).value;
+                corpo.vigencia_fim = document.getElementById('vig-fim-' + i).value;
+                if (!corpo.vigencia_inicio || !corpo.vigencia_fim || corpo.vigencia_fim <= corpo.vigencia_inicio) {
+                    erroEl.textContent = 'Confirme as duas datas da vigência (o término deve ser depois do início).';
+                    erroEl.classList.remove('hidden');
+                    return;
+                }
+            } else if (!confirm(`Recusar o pedido de ${s.nome || s.email}?`)) {
+                return;
+            }
+
+            const botoes = card.querySelectorAll('button, input');
             botoes.forEach(b => b.disabled = true);
             try {
                 const res = await apiFetch(`${API_URL}/admin/decidir`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, decisao }),
+                    body: JSON.stringify(corpo),
                 });
                 const json = await res.json();
                 if (!res.ok) throw new Error(json.erro || 'Erro ao registrar decisão.');
                 card.remove();
-                if (json.email_enviado === false) {
-                    alert(`Decisão registrada, mas o e-mail para ${email} não foi enviado.\n\n` +
-                        `Motivo: ${json.email_erro || 'desconhecido'}\n\n` +
-                        'Avise a pessoa manualmente.');
-                }
-                const lista = document.getElementById('lista-solicitacoes');
-                if (!lista.children.length) document.getElementById('bloco-vazio').classList.remove('hidden');
+                atualizarVazioPendentes();
+                avisarSeEmailFalhou(json, s.email);
+                if (decisao === 'aprovar') carregarCoordenadores();
             } catch (e) {
-                alert(e.message);
+                erroEl.textContent = e.message;
+                erroEl.classList.remove('hidden');
                 botoes.forEach(b => b.disabled = false);
             }
         }
 
-        async function verComprovante(email) {
-            const modal = document.getElementById('modal-comprovante');
-            const conteudo = document.getElementById('comprovante-conteudo');
+        // ===================== Portaria (visualização) =====================
+
+        // Data URL → Blob. O Chrome não exibe PDF vindo de data: URL em
+        // <embed>/<iframe> de forma confiável; blob: URL funciona.
+        function dataUrlParaBlob(dataUrl) {
+            const m = /^data:([^;,]*)(;base64)?,([\s\S]*)$/.exec(dataUrl || '');
+            if (!m || !m[2]) return null;
+            const bin = atob(m[3]);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            return new Blob([bytes], { type: m[1] || 'application/octet-stream' });
+        }
+
+        async function verPortaria(i) {
+            const s = pendentes[i];
+            const modal = document.getElementById('modal-portaria');
+            const conteudo = document.getElementById('portaria-conteudo');
+            const links = document.getElementById('portaria-links');
             conteudo.textContent = 'Carregando...';
+            links.innerHTML = '';
             modal.classList.remove('hidden');
             modal.classList.add('flex');
             try {
-                const res = await apiFetch(`${API_URL}/admin/comprovante/${encodeURIComponent(email)}`);
+                const res = await apiFetch(`${API_URL}/admin/comprovante/${encodeURIComponent(s.email)}`);
                 const json = await res.json();
-                if (!res.ok) throw new Error(json.erro || 'Erro ao carregar comprovante.');
-                const dataUrl = json.comprovante_base64 || '';
-                if (dataUrl.startsWith('data:application/pdf')) {
-                    conteudo.innerHTML = `<embed src="${dataUrl}" type="application/pdf" class="w-full h-[70vh]" />`;
-                } else if (dataUrl.startsWith('data:image/')) {
-                    conteudo.innerHTML = `<img src="${dataUrl}" class="max-w-full mx-auto rounded-lg" />`;
+                if (!res.ok) throw new Error(json.erro || 'Erro ao carregar a portaria.');
+                const blob = dataUrlParaBlob(json.comprovante_base64);
+                if (!blob) throw new Error('Arquivo da portaria inválido.');
+
+                if (urlPortaria) URL.revokeObjectURL(urlPortaria);
+                urlPortaria = URL.createObjectURL(blob);
+                const nome = json.comprovante_nome || 'portaria';
+                links.innerHTML =
+                    `<a href="${urlPortaria}" target="_blank" rel="noopener" class="text-iffar font-semibold hover:underline">Abrir em nova aba</a>` +
+                    `<a href="${urlPortaria}" download="${escapeHtml(nome)}" class="text-iffar font-semibold hover:underline">Baixar</a>`;
+
+                if (blob.type === 'application/pdf') {
+                    conteudo.innerHTML = `<iframe src="${urlPortaria}" title="Portaria" class="w-full h-[70vh] rounded-lg border border-gray-200"></iframe>`;
+                } else if (blob.type.startsWith('image/')) {
+                    conteudo.innerHTML = `<img src="${urlPortaria}" alt="Portaria" class="max-w-full mx-auto rounded-lg" />`;
                 } else {
-                    conteudo.textContent = 'Não foi possível exibir este arquivo.';
+                    conteudo.textContent = 'Pré-visualização indisponível para este tipo de arquivo — use "Baixar".';
                 }
             } catch (e) {
                 conteudo.textContent = e.message;
             }
         }
 
-        function fecharComprovante() {
-            const modal = document.getElementById('modal-comprovante');
+        function fecharPortaria() {
+            const modal = document.getElementById('modal-portaria');
             modal.classList.add('hidden');
             modal.classList.remove('flex');
+            document.getElementById('portaria-conteudo').innerHTML = '';
+            if (urlPortaria) { URL.revokeObjectURL(urlPortaria); urlPortaria = null; }
         }
 
+        // ===================== Coordenadores com acesso =====================
+
+        function seloSituacao(c) {
+            if (c.situacao === 'vencida') {
+                return '<span class="text-xs font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Vencida</span>';
+            }
+            if (c.situacao === 'vence_em_breve') {
+                const d = c.dias_restantes;
+                const txt = d === 0 ? 'Vence hoje' : `Vence em ${d} dia${d === 1 ? '' : 's'}`;
+                return `<span class="text-xs font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">${txt}</span>`;
+            }
+            return '<span class="text-xs font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Vigente</span>';
+        }
+
+        function cardCoordenador(c, i) {
+            const vigencia = c.vigencia_fim
+                ? `${formatarDataBR(c.vigencia_inicio)} a ${formatarDataBR(c.vigencia_fim)}`
+                : 'sem vigência registrada';
+            return `
+            <div class="bg-white border border-gray-200 rounded-2xl px-5 py-4 flex items-center justify-between gap-4 flex-wrap"
+                id="card-coord-${i}">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <p class="font-bold text-gray-900">${escapeHtml(c.nome || '(sem nome)')}</p>
+                        ${seloSituacao(c)}
+                    </div>
+                    <p class="text-sm text-gray-500">${escapeHtml(c.email)} · ${escapeHtml(c.curso || '—')}</p>
+                    <p class="text-xs text-gray-500 mt-0.5">Vigência: ${vigencia}</p>
+                </div>
+                <button onclick="abrirRevogar(${i})"
+                    class="border border-red-200 text-red-700 hover:bg-red-50 text-sm font-semibold px-4 py-2 rounded-lg transition shrink-0">
+                    Revogar
+                </button>
+            </div>`;
+        }
+
+        function atualizarVazioCoordenadores() {
+            const restantes = document.querySelectorAll('[id^="card-coord-"]').length;
+            document.getElementById('contagem-coordenadores').textContent = restantes ? `(${restantes})` : '';
+            document.getElementById('vazio-coordenadores').classList.toggle('hidden', restantes > 0);
+        }
+
+        async function carregarCoordenadores() {
+            const res = await apiFetch(`${API_URL}/admin/coordenadores`);
+            if (res.status === 403) throw Object.assign(new Error('negado'), { negado: true });
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.erro || 'Erro ao carregar coordenadores.');
+            coordenadores = json.coordenadores;
+            document.getElementById('lista-coordenadores').innerHTML = coordenadores.map(cardCoordenador).join('');
+            document.getElementById('carregando-coordenadores').classList.add('hidden');
+            atualizarVazioCoordenadores();
+        }
+
+        // ===================== Revogação =====================
+
+        function abrirRevogar(i) {
+            revogandoIdx = i;
+            const c = coordenadores[i];
+            document.getElementById('revogar-nome').textContent = c.nome || '(sem nome)';
+            document.getElementById('revogar-email').textContent = c.email;
+            document.getElementById('revogar-motivo').value = '';
+            document.getElementById('revogar-erro').classList.add('hidden');
+            // Portaria vencida: já sugere o motivo correspondente.
+            if (c.situacao === 'vencida') document.getElementById('revogar-motivo').value = MOTIVOS_PRONTOS[0];
+            const modal = document.getElementById('modal-revogar');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.getElementById('revogar-motivo').focus();
+        }
+
+        function fecharRevogar() {
+            const modal = document.getElementById('modal-revogar');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            revogandoIdx = null;
+        }
+
+        async function confirmarRevogar() {
+            const c = coordenadores[revogandoIdx];
+            const motivo = document.getElementById('revogar-motivo').value.trim();
+            const erroEl = document.getElementById('revogar-erro');
+            if (!motivo) {
+                erroEl.textContent = 'Informe o motivo da revogação.';
+                erroEl.classList.remove('hidden');
+                return;
+            }
+            const btn = document.getElementById('btn-confirmar-revogar');
+            btn.disabled = true;
+            try {
+                const res = await apiFetch(`${API_URL}/admin/revogar`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: c.email, motivo }),
+                });
+                const json = await res.json();
+                if (!res.ok) throw new Error(json.erro || 'Erro ao revogar o acesso.');
+                document.getElementById('card-coord-' + revogandoIdx).remove();
+                atualizarVazioCoordenadores();
+                fecharRevogar();
+                avisarSeEmailFalhou(json, c.email);
+            } catch (e) {
+                erroEl.textContent = e.message;
+                erroEl.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        document.getElementById('revogar-motivos-prontos').innerHTML = MOTIVOS_PRONTOS.map((m, i) =>
+            `<button type="button" onclick="document.getElementById('revogar-motivo').value = MOTIVOS_PRONTOS[${i}]"
+                class="text-xs border border-gray-300 hover:border-red-300 hover:bg-red-50 text-gray-700 px-3 py-1.5 rounded-full transition">
+                ${escapeHtml(m)}
+            </button>`).join('');
+
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') fecharComprovante();
+            if (e.key !== 'Escape') return;
+            fecharPortaria();
+            fecharRevogar();
         });
 
         (async () => {
             const user = await exigirLogin('auth.html');
             if (!user) return;
-            await carregarSolicitacoes();
+            const resultados = await Promise.allSettled([carregarPendentes(), carregarCoordenadores()]);
+            if (resultados.some(r => r.status === 'rejected' && r.reason && r.reason.negado)) {
+                document.getElementById('conteudo-admin').classList.add('hidden');
+                document.getElementById('bloco-negado').classList.remove('hidden');
+                return;
+            }
+            const [rp, rc] = resultados;
+            if (rp.status === 'rejected') {
+                document.getElementById('carregando-pendentes').textContent = rp.reason.message;
+                document.getElementById('carregando-pendentes').className = 'text-sm text-red-600';
+            }
+            if (rc.status === 'rejected') {
+                document.getElementById('carregando-coordenadores').textContent = rc.reason.message;
+                document.getElementById('carregando-coordenadores').className = 'text-sm text-red-600';
+            }
         })();
     </script>
 

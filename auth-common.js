@@ -16,6 +16,24 @@ try {
 // disparo de onAuthStateChanged pode vir null ANTES da sessão persistida
 // ser lida, o que fazia o presente.html achar que ninguém estava logado
 // logo depois do login no auth.html (e mandar de volta pro login em loop).
+// ===== Datas "AAAA-MM-DD" (vigência de portaria) =====
+// Tratadas como texto/UTC de propósito: new Date('2026-09-01') é meia-noite
+// UTC, que no Brasil vira 31/08 — formatar pelo fuso local voltaria um dia.
+
+function formatarDataBR(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+}
+
+// Término previsto de uma portaria de 24 meses: véspera do mesmo dia, 24
+// meses depois (01/09/2026 → 31/08/2028; 29/02/2024 → 28/02/2026).
+function fimPrevistoPortaria(inicioIso, meses = 24) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(inicioIso || '');
+    if (!m) return '';
+    const aniversario = Date.UTC(+m[1], +m[2] - 1 + meses, +m[3]);
+    return new Date(aniversario - 86400000).toISOString().slice(0, 10);
+}
+
 function _authStateReady(auth) {
     // O SDK "compat" não expõe authStateReady() no wrapper — só no objeto
     // modular interno (_delegate). Fallback: primeiro onAuthStateChanged.
